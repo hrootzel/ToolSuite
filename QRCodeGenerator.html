@@ -77,6 +77,19 @@
                 <label class="field__label" for="qrMargin">Margin</label>
                 <input class="input input--sm" type="number" id="qrMargin" min="0" max="10" value="4" title="Quiet zone size in modules around the code." />
               </div>
+              <div class="field">
+                <label class="field__label" for="qrStyle">Style</label>
+                <select class="input input--sm" id="qrStyle" title="Rendering style for QR modules.">
+                  <option value="square" selected>Square</option>
+                  <option value="gapped-square">Gapped square</option>
+                  <option value="circle">Circle</option>
+                  <option value="gapped-circle">Gapped circle</option>
+                  <option value="rounded">Rounded</option>
+                  <option value="vertical-bars">Vertical bars</option>
+                  <option value="horizontal-bars">Horizontal bars</option>
+                  <option value="diamond">Diamond</option>
+                </select>
+              </div>
             </div>
 
             <div class="field-row">
@@ -101,7 +114,7 @@
         <section class="card">
           <div class="card__header">
             <h2 class="card__title">Preview</h2>
-            <p class="card__subtitle">White modules on a black background.</p>
+            <p class="card__subtitle">Black modules on a white background by default.</p>
           </div>
 
           <div class="qr-preview">

@@ -8,7 +8,8 @@
     scale: 8,
     margin: 4,
     foreground: "#000000",
-    background: "#ffffff"
+    background: "#ffffff",
+    style: "square"
   };
 
   const ECC_LEVELS = {
@@ -947,8 +948,8 @@
     return { modules, version: actualVersion, maskPattern };
   }
 
-  // Render matrix to a black canvas with white modules.
-  function renderQr(canvas, modules, scale, margin, foreground, background) {
+  // Render matrix to a canvas with configurable module style.
+  function renderQr(canvas, modules, scale, margin, foreground, background, style) {
     const size = modules.length;
     const dpr = window.devicePixelRatio || 1;
     const canvasSize = (size + margin * 2) * scale;
@@ -962,13 +963,119 @@
     ctx.fillStyle = background;
     ctx.fillRect(0, 0, canvasSize, canvasSize);
     ctx.fillStyle = foreground;
+    const useRounded = style === "rounded";
     for (let row = 0; row < size; row++) {
       for (let col = 0; col < size; col++) {
         if (modules[row][col]) {
-          ctx.fillRect((col + margin) * scale, (row + margin) * scale, scale, scale);
+          const neighbors = useRounded
+            ? {
+                up: row > 0 && modules[row - 1][col],
+                right: col < size - 1 && modules[row][col + 1],
+                down: row < size - 1 && modules[row + 1][col],
+                left: col > 0 && modules[row][col - 1]
+              }
+            : null;
+          drawModule(ctx, (col + margin) * scale, (row + margin) * scale, scale, style, neighbors);
         }
       }
     }
+  }
+
+  function drawModule(ctx, x, y, size, style, neighbors) {
+    if (style === "vertical-bars") {
+      const barWidth = Math.max(1, Math.round(size * 0.7));
+      const offset = (size - barWidth) / 2;
+      ctx.fillRect(x + offset, y, barWidth, size);
+      return;
+    }
+
+    if (style === "horizontal-bars") {
+      const barHeight = Math.max(1, Math.round(size * 0.7));
+      const offset = (size - barHeight) / 2;
+      ctx.fillRect(x, y + offset, size, barHeight);
+      return;
+    }
+
+    if (style === "gapped-square") {
+      const inner = Math.max(1, Math.round(size * 0.7));
+      const offset = (size - inner) / 2;
+      ctx.fillRect(x + offset, y + offset, inner, inner);
+      return;
+    }
+
+    if (style === "circle" || style === "gapped-circle") {
+      const scale = style === "gapped-circle" ? 0.7 : 1;
+      const diameter = Math.max(1, Math.round(size * scale));
+      const radius = diameter / 2;
+      const offset = (size - diameter) / 2;
+      ctx.beginPath();
+      ctx.arc(x + offset + radius, y + offset + radius, radius, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    if (style === "rounded") {
+      const edgeInfo = neighbors || { up: false, right: false, down: false, left: false };
+      drawRoundedModule(ctx, x, y, size, edgeInfo);
+      return;
+    }
+
+    if (style === "diamond") {
+      ctx.beginPath();
+      ctx.moveTo(x + size / 2, y);
+      ctx.lineTo(x + size, y + size / 2);
+      ctx.lineTo(x + size / 2, y + size);
+      ctx.lineTo(x, y + size / 2);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
+
+    if (style === "square") {
+      const bleed = 0.4;
+      ctx.fillRect(x - bleed, y - bleed, size + bleed * 2, size + bleed * 2);
+      return;
+    }
+
+    ctx.fillRect(x, y, size, size);
+  }
+
+  // Round only the outer corners for joined modules.
+  function drawRoundedModule(ctx, x, y, size, edges) {
+    const radius = Math.max(1, size * 0.55);
+    const roundTopLeft = !edges.up && !edges.left;
+    const roundTopRight = !edges.up && !edges.right;
+    const roundBottomRight = !edges.down && !edges.right;
+    const roundBottomLeft = !edges.down && !edges.left;
+
+    ctx.beginPath();
+    ctx.moveTo(x + (roundTopLeft ? radius : 0), y);
+    ctx.lineTo(x + size - (roundTopRight ? radius : 0), y);
+    if (roundTopRight) {
+      ctx.quadraticCurveTo(x + size, y, x + size, y + radius);
+    } else {
+      ctx.lineTo(x + size, y);
+    }
+    ctx.lineTo(x + size, y + size - (roundBottomRight ? radius : 0));
+    if (roundBottomRight) {
+      ctx.quadraticCurveTo(x + size, y + size, x + size - radius, y + size);
+    } else {
+      ctx.lineTo(x + size, y + size);
+    }
+    ctx.lineTo(x + (roundBottomLeft ? radius : 0), y + size);
+    if (roundBottomLeft) {
+      ctx.quadraticCurveTo(x, y + size, x, y + size - radius);
+    } else {
+      ctx.lineTo(x, y + size);
+    }
+    ctx.lineTo(x, y + (roundTopLeft ? radius : 0));
+    if (roundTopLeft) {
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
   }
 
   // Wire up UI and generate previews.
@@ -983,6 +1090,7 @@
     const marginInput = document.getElementById("qrMargin");
     const foregroundInput = document.getElementById("qrForeground");
     const backgroundInput = document.getElementById("qrBackground");
+    const styleSelect = document.getElementById("qrStyle");
     const generateButton = document.getElementById("qrGenerate");
     const canvas = document.getElementById("qrCanvas");
     const status = document.getElementById("qrStatus");
@@ -997,6 +1105,7 @@
       !marginInput ||
       !foregroundInput ||
       !backgroundInput ||
+      !styleSelect ||
       !canvas
     ) {
       return;
@@ -1021,6 +1130,7 @@
     marginInput.value = String(QR_DEFAULTS.margin);
     foregroundInput.value = QR_DEFAULTS.foreground;
     backgroundInput.value = QR_DEFAULTS.background;
+    styleSelect.value = QR_DEFAULTS.style;
     textInput.value = "ToolSuite";
 
     function updateStatus(message, isError) {
@@ -1049,12 +1159,13 @@
       const margin = Math.max(0, Math.min(10, parseInt(marginInput.value, 10) || QR_DEFAULTS.margin));
       const foreground = foregroundInput.value || QR_DEFAULTS.foreground;
       const background = backgroundInput.value || QR_DEFAULTS.background;
+      const style = styleSelect.value || QR_DEFAULTS.style;
       scaleInput.value = String(scale);
       marginInput.value = String(margin);
       try {
         const qr = makeQr(dataBytes, eccLevel, versionValue, maskValue);
-        renderQr(canvas, qr.modules, scale, margin, foreground, background);
-        updateStatus(`Version ${qr.version} • Mask ${qr.maskPattern} • ${dataBytes.length} bytes`, false);
+        renderQr(canvas, qr.modules, scale, margin, foreground, background, style);
+        updateStatus(`Version ${qr.version} | Mask ${qr.maskPattern} | ${dataBytes.length} bytes`, false);
       } catch (error) {
         clearCanvas();
         updateStatus(error.message || "Unable to generate QR code.", true);
@@ -1082,6 +1193,7 @@
     marginInput.addEventListener("input", generate);
     foregroundInput.addEventListener("input", generate);
     backgroundInput.addEventListener("input", generate);
+    styleSelect.addEventListener("change", generate);
 
     generate();
   }
