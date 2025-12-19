@@ -25,19 +25,41 @@
             <h2 class="card__title">Serum level over <span id="chartDaysLabel">10</span> days</h2>
             <p class="card__subtitle">Assumes 100% bioavailability and doses at the start of each day.</p>
             <div class="chart-header__controls">
-              <div class="field">
-                <label class="field__label" for="halfLife">Half-life</label>
-                <div class="control-row">
-                  <input class="input input--sm" type="number" id="halfLife" value="6" min="0.1" step="0.1" />
-                  <select class="input input--sm" id="halfLifeUnit" aria-label="Half-life unit">
-                    <option value="days" selected>Days</option>
-                    <option value="hours">Hours</option>
+              <div class="field-row">
+                <div class="field">
+                  <label class="field__label" for="halfLife">Half-life</label>
+                  <div class="control-row">
+                    <input class="input input--sm" type="number" id="halfLife" value="6" min="0.1" step="0.1" />
+                    <select class="input input--sm" id="halfLifeUnit" aria-label="Half-life unit">
+                      <option value="days" selected>Days</option>
+                      <option value="hours">Hours</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="modelSelect">Model</label>
+                  <select class="input" id="modelSelect">
+                    <option value="bolus" selected>Instant (bolus)</option>
+                    <option value="bateman">Bateman (SC absorption)</option>
+                    <option value="zero">Zero-order absorption</option>
                   </select>
                 </div>
               </div>
-              <div class="field">
-                <label class="field__label" for="plotDays">Days in plot</label>
-                <input class="input input--sm" type="number" id="plotDays" value="10" min="1" max="30" step="1" />
+              <div class="field-row">
+                <div class="field" id="modelParamField" hidden>
+                  <label class="field__label" for="absorptionValue" id="modelParamLabel">Absorption</label>
+                  <div class="control-row">
+                    <input class="input input--sm" type="number" id="absorptionValue" value="0.5" min="0.1" step="0.1" />
+                    <select class="input input--sm" id="absorptionUnit" aria-label="Absorption unit">
+                      <option value="days" selected>Days</option>
+                      <option value="hours">Hours</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="plotDays">Days in plot</label>
+                  <input class="input input--sm" type="number" id="plotDays" value="10" min="1" max="30" step="1" />
+                </div>
               </div>
             </div>
           </div>
@@ -96,6 +118,11 @@
     <script>
       const halfLifeInput = document.getElementById("halfLife");
       const halfLifeUnit = document.getElementById("halfLifeUnit");
+      const modelSelect = document.getElementById("modelSelect");
+      const modelParamField = document.getElementById("modelParamField");
+      const modelParamLabel = document.getElementById("modelParamLabel");
+      const absorptionValue = document.getElementById("absorptionValue");
+      const absorptionUnit = document.getElementById("absorptionUnit");
       const plotDaysInput = document.getElementById("plotDays");
       const chartDaysLabel = document.getElementById("chartDaysLabel");
       const doseTable = document.getElementById("doseTable");
@@ -119,6 +146,7 @@
       const DEFAULT_HALF_LIFE = 6;
       const DEFAULT_PLOT_DAYS = 10;
       const MAX_PLOT_DAYS = 30;
+      const DEFAULT_ABSORPTION = 0.5;
       const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       const chartState = {
         points: [],
@@ -236,6 +264,16 @@
         return halfLifeUnit.value === "hours" ? safeValue : safeValue * HOURS_PER_DAY;
       }
 
+      function getAbsorptionHours() {
+        if (!absorptionValue || !absorptionUnit) return DEFAULT_ABSORPTION * HOURS_PER_DAY;
+        const rawValue = parseFloat(absorptionValue.value);
+        const safeValue = Number.isFinite(rawValue) && rawValue > 0 ? rawValue : DEFAULT_ABSORPTION;
+        if (!Number.isFinite(rawValue) || rawValue <= 0) {
+          absorptionValue.value = String(DEFAULT_ABSORPTION);
+        }
+        return absorptionUnit.value === "hours" ? safeValue : safeValue * HOURS_PER_DAY;
+      }
+
       function getPlotDays() {
         const rawValue = parseInt(plotDaysInput.value, 10);
         let safeValue = Number.isFinite(rawValue) ? rawValue : DEFAULT_PLOT_DAYS;
@@ -328,6 +366,26 @@
         return doseValues.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
       }
 
+      function updateModelControls() {
+        if (!modelSelect || !modelParamField || !modelParamLabel) return;
+        const model = modelSelect.value;
+        if (model === "bolus") {
+          modelParamField.hidden = true;
+          modelParamField.setAttribute("aria-hidden", "true");
+          if (absorptionValue) absorptionValue.disabled = true;
+          if (absorptionUnit) absorptionUnit.disabled = true;
+          modelParamField.classList.add("is-disabled");
+          return;
+        }
+        modelParamField.hidden = false;
+        modelParamField.setAttribute("aria-hidden", "false");
+        if (absorptionValue) absorptionValue.disabled = false;
+        if (absorptionUnit) absorptionUnit.disabled = false;
+        modelParamField.classList.remove("is-disabled");
+        modelParamLabel.textContent =
+          model === "bateman" ? "Absorption half-life" : "Absorption duration";
+      }
+
       function resizeCanvas() {
         const dpr = window.devicePixelRatio || 1;
         const rect = chart.getBoundingClientRect();
@@ -349,11 +407,14 @@
         };
       }
 
-      function computePoints(halfLifeHours, doses) {
+      function computePoints(halfLifeHours, doses, model, absorptionHours) {
         const totalDays = doses.length;
         const totalHours = totalDays * HOURS_PER_DAY;
         const stepHours = 1;
         const points = [];
+        const ke = Math.log(2) / halfLifeHours;
+        const safeAbsorption = Math.max(absorptionHours, 0.01);
+        const ka = Math.log(2) / safeAbsorption;
 
         for (let hour = 0; hour <= totalHours; hour += stepHours) {
           let level = 0;
@@ -362,7 +423,24 @@
             if (dose <= 0) continue;
             const doseHour = day * HOURS_PER_DAY;
             if (hour >= doseHour) {
-              level += dose * Math.pow(0.5, (hour - doseHour) / halfLifeHours);
+              const t = hour - doseHour;
+              if (model === "bateman") {
+                if (Math.abs(ka - ke) < 1e-6) {
+                  level += dose * ke * t * Math.exp(-ke * t);
+                } else {
+                  level += (dose * ka * (Math.exp(-ke * t) - Math.exp(-ka * t))) / (ka - ke);
+                }
+              } else if (model === "zero") {
+                const duration = safeAbsorption;
+                const rate = dose / duration;
+                if (t <= duration) {
+                  level += (rate / ke) * (1 - Math.exp(-ke * t));
+                } else {
+                  level += (rate / ke) * (1 - Math.exp(-ke * duration)) * Math.exp(-ke * (t - duration));
+                }
+              } else {
+                level += dose * Math.exp(-ke * t);
+              }
             }
           }
           points.push({ hour, level });
@@ -514,9 +592,11 @@
         ctx.fillRect(0, 0, width, height);
 
         const halfLifeHours = getHalfLifeHours();
+        const model = modelSelect ? modelSelect.value : "bolus";
+        const absorptionHours = getAbsorptionHours();
         const doses = getDoses();
         const totalDays = doses.length;
-        const { points, totalHours } = computePoints(halfLifeHours, doses);
+        const { points, totalHours } = computePoints(halfLifeHours, doses, model, absorptionHours);
         const stats = computeStats(points);
         const maxLevel = stats.max;
         const safeMax = maxLevel > 0 ? maxLevel : 1;
@@ -701,6 +781,18 @@
         renderDoseTable();
         scheduleDraw();
       });
+      if (modelSelect) {
+        modelSelect.addEventListener("change", () => {
+          updateModelControls();
+          scheduleDraw();
+        });
+      }
+      if (absorptionValue) {
+        absorptionValue.addEventListener("input", scheduleDraw);
+      }
+      if (absorptionUnit) {
+        absorptionUnit.addEventListener("change", scheduleDraw);
+      }
       halfLifeInput.addEventListener("input", scheduleDraw);
       halfLifeUnit.addEventListener("change", scheduleDraw);
       chart.addEventListener("mousemove", handleHover);
@@ -732,6 +824,7 @@
         }
       }
 
+      updateModelControls();
       scheduleDraw();
     </script>
   </body>
