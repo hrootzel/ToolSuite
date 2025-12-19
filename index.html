@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>ToolSuite</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <h1 class="site-header__title">ToolSuite</h1>
+        <p class="site-header__subtitle">Modern, lightweight utilities that run locally in your browser.</p>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="section" aria-labelledby="utilities-title">
+        <div class="section__header">
+          <h2 class="section__title" id="utilities-title">Utilities</h2>
+          <p class="section__subtitle">Pick a tool to launch.</p>
+        </div>
+
+        <div class="tool-grid">
+          <article class="card tool-card">
+            <div class="tool-card__header">
+              <h3 class="tool-card__title">Strong Password Generator</h3>
+            </div>
+            <p class="tool-card__desc">
+              Generate strong random passwords with configurable length and character weights.
+            </p>
+            <div class="tool-card__actions">
+              <a class="btn btn--primary" href="StrongPassword.html">Open</a>
+            </div>
+          </article>
+          <article class="card tool-card">
+            <div class="tool-card__header">
+              <h3 class="tool-card__title">Dose Calculator</h3>
+            </div>
+            <p class="tool-card__desc">
+              Estimate medicine levels over time using half-life decay and daily dosing.
+            </p>
+            <div class="tool-card__actions">
+              <a class="btn btn--primary" href="DoseCalculator.html">Open</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p class="footer__text">
+          Run locally via <code>python -m http.server</code> or the included <code>serve.bat</code>/<code>serve.sh</code>.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
