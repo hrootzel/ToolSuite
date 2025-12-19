@@ -122,6 +122,7 @@
         points: [],
         totalHours: 0,
         safeMax: 1,
+        avgLevel: 0,
         padding: null,
         plotWidth: 0,
         plotHeight: 0,
@@ -240,7 +241,7 @@
         const rect = chart.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        const { padding, plotWidth, plotHeight, totalHours, points, safeMax } = chartState;
+        const { padding, plotWidth, plotHeight, totalHours, points, safeMax, avgLevel } = chartState;
         if (
           x < padding.left ||
           x > padding.left + plotWidth ||
@@ -249,6 +250,14 @@
         ) {
           hideTooltip();
           return;
+        }
+
+        if (avgLevel > 0) {
+          const avgY = padding.top + plotHeight - (avgLevel / safeMax) * plotHeight;
+          if (Math.abs(y - avgY) <= 6) {
+            positionTooltip(x, avgY, `Average: ${avgLevel.toFixed(2)}mg`);
+            return;
+          }
         }
 
         const hour = Math.round(((x - padding.left) / plotWidth) * totalHours);
@@ -283,9 +292,12 @@
         const { points, totalHours } = computePoints(halfLifeHours, doses);
         const maxLevel = points.reduce((max, point) => Math.max(max, point.level), 0);
         const safeMax = maxLevel > 0 ? maxLevel : 1;
+        const avgLevel =
+          points.length > 0 ? points.reduce((sum, point) => sum + point.level, 0) / points.length : 0;
         chartState.points = points;
         chartState.totalHours = totalHours;
         chartState.safeMax = safeMax;
+        chartState.avgLevel = avgLevel;
         chartState.padding = padding;
         chartState.plotWidth = plotWidth;
         chartState.plotHeight = plotHeight;
@@ -355,6 +367,20 @@
         ctx.strokeStyle = colors.primary;
         ctx.lineWidth = 2;
         ctx.stroke();
+
+        if (avgLevel > 0) {
+          const avgY = padding.top + plotHeight - (avgLevel / safeMax) * plotHeight;
+          ctx.save();
+          ctx.strokeStyle = colors.muted;
+          ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.7;
+          ctx.setLineDash([6, 6]);
+          ctx.beginPath();
+          ctx.moveTo(padding.left, avgY);
+          ctx.lineTo(padding.left + plotWidth, avgY);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       const controls = [...dayInputs, halfLifeInput, halfLifeUnit];
