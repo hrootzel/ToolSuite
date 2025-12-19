@@ -238,6 +238,10 @@ code {
   gap: 16px;
 }
 
+.split--qr {
+  --split-right-ratio: 0.425;
+}
+
 .stack {
   display: grid;
   gap: 16px;
@@ -248,6 +252,10 @@ code {
     grid-template-columns: 1.15fr 0.85fr;
     align-items: start;
   }
+}
+
+.split--stacked {
+  grid-template-columns: 1fr;
 }
 
 .form {
@@ -315,6 +323,15 @@ code {
   max-width: 100%;
 }
 
+#qrStyle,
+#qrPositionStyle {
+  width: 100%;
+}
+
+#qrText {
+  resize: none;
+}
+
 .input:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
@@ -373,10 +390,51 @@ code {
   gap: 10px;
 }
 
+.qr-actions {
+  justify-content: center;
+  margin-top: 16px;
+}
+
 .output {
   display: grid;
   gap: 10px;
   min-height: 64px;
+}
+
+.qr-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+}
+
+.qr-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.split--stacked .qr-canvas {
+  max-width: none;
+}
+
+.status-text {
+  margin-top: 6px;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.status-text--error {
+  color: #b91c1c;
+}
+
+.input--color {
+  padding: 6px;
+  height: 42px;
 }
 
 .chart-area {
