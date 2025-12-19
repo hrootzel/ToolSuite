@@ -409,7 +409,7 @@ code {
 .dose-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 640px;
+  table-layout: fixed;
 }
 
 .dose-table th,

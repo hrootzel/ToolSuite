@@ -22,7 +22,7 @@
       <section class="card">
         <div class="card__header chart-header">
           <div class="chart-header__left">
-            <h2 class="card__title">Serum level over 10 days</h2>
+            <h2 class="card__title">Serum level over <span id="chartDaysLabel">10</span> days</h2>
             <p class="card__subtitle">Assumes 100% bioavailability and doses at the start of each day.</p>
             <div class="chart-header__controls">
               <div class="field">
@@ -34,6 +34,10 @@
                     <option value="hours">Hours</option>
                   </select>
                 </div>
+              </div>
+              <div class="field">
+                <label class="field__label" for="plotDays">Days in plot</label>
+                <input class="input input--sm" type="number" id="plotDays" value="10" min="3" step="1" />
               </div>
             </div>
           </div>
@@ -71,56 +75,10 @@
           <h3 class="section__title">Dose schedule</h3>
           <p class="section__subtitle">Enter the dose in milligrams for each day.</p>
           <div class="table-wrapper">
-            <table class="dose-table">
+            <table class="dose-table" id="doseTable">
               <caption class="table-caption">Doses are applied at the start of each day.</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Mon</th>
-                  <th scope="col">Tue</th>
-                  <th scope="col">Wed</th>
-                  <th scope="col">Thu</th>
-                  <th scope="col">Fri</th>
-                  <th scope="col">Sat</th>
-                  <th scope="col">Sun</th>
-                  <th scope="col">Mon</th>
-                  <th scope="col">Tue</th>
-                  <th scope="col">Wed</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="1" aria-label="Dose for Monday day 1" />
-                  </td>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Tuesday day 2" />
-                  </td>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Wednesday day 3" />
-                  </td>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Thursday day 4" />
-                  </td>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Friday day 5" />
-                  </td>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Saturday day 6" />
-                  </td>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Sunday day 7" />
-                  </td>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Monday day 8" />
-                  </td>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Tuesday day 9" />
-                  </td>
-                  <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Wednesday day 10" />
-                  </td>
-                </tr>
-              </tbody>
+              <thead></thead>
+              <tbody></tbody>
             </table>
           </div>
         </div>
@@ -132,9 +90,15 @@
     </main>
 
     <script>
-      const dayInputs = Array.from(document.querySelectorAll(".dose-input"));
+      let dayInputs = [];
       const halfLifeInput = document.getElementById("halfLife");
       const halfLifeUnit = document.getElementById("halfLifeUnit");
+      const plotDaysInput = document.getElementById("plotDays");
+      const chartDaysLabel = document.getElementById("chartDaysLabel");
+      const doseTable = document.getElementById("doseTable");
+      const doseTableHead = doseTable.querySelector("thead");
+      const doseTableBody = doseTable.querySelector("tbody");
+      const tableWrapper = document.querySelector(".table-wrapper");
       const chart = document.getElementById("levelChart");
       const chartArea = chart.closest(".chart-area");
       const tooltip = document.getElementById("chartTooltip");
@@ -147,6 +111,8 @@
 
       const HOURS_PER_DAY = 24;
       const DEFAULT_HALF_LIFE = 6;
+      const DEFAULT_PLOT_DAYS = 10;
+      const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       const chartState = {
         points: [],
         totalHours: 0,
@@ -214,6 +180,62 @@
           halfLifeInput.value = String(DEFAULT_HALF_LIFE);
         }
         return halfLifeUnit.value === "hours" ? safeValue : safeValue * HOURS_PER_DAY;
+      }
+
+      function getPlotDays() {
+        const rawValue = parseInt(plotDaysInput.value, 10);
+        let safeValue = Number.isFinite(rawValue) ? rawValue : DEFAULT_PLOT_DAYS;
+        if (safeValue < 3) {
+          safeValue = 3;
+        }
+        plotDaysInput.value = String(safeValue);
+        return safeValue;
+      }
+
+      function renderDoseTable(plotDaysOverride) {
+        const plotDays = Number.isFinite(plotDaysOverride) ? plotDaysOverride : getPlotDays();
+        if (!Number.isFinite(plotDays) || plotDays < 3) {
+          return;
+        }
+        if (chartDaysLabel) {
+          chartDaysLabel.textContent = String(plotDays);
+        }
+        const existingValues = dayInputs.map((input) => {
+          const value = parseFloat(input.value);
+          return Number.isFinite(value) ? value : 0;
+        });
+
+        doseTableHead.textContent = "";
+        doseTableBody.textContent = "";
+
+        const headRow = document.createElement("tr");
+        const bodyRow = document.createElement("tr");
+
+        for (let i = 0; i < plotDays; i++) {
+          const dayName = DAY_LABELS[i % DAY_LABELS.length];
+          const th = document.createElement("th");
+          th.scope = "col";
+          th.textContent = dayName;
+          headRow.appendChild(th);
+
+          const td = document.createElement("td");
+          const input = document.createElement("input");
+          input.className = "input input--sm dose-input";
+          input.type = "number";
+          input.min = "0";
+          input.step = "0.1";
+          const existingValue = existingValues[i];
+          const fallbackValue = i === 0 ? 1 : 0;
+          input.value = String(Number.isFinite(existingValue) ? existingValue : fallbackValue);
+          input.setAttribute("aria-label", `Dose for ${dayName} day ${i + 1}`);
+          td.appendChild(input);
+          bodyRow.appendChild(td);
+        }
+
+        doseTableHead.appendChild(headRow);
+        doseTableBody.appendChild(bodyRow);
+        dayInputs = Array.from(doseTable.querySelectorAll(".dose-input"));
+        chartState.selectedHour = null;
       }
 
       function getDoses() {
@@ -526,8 +548,27 @@
         }
       }
 
-      const controls = [...dayInputs, halfLifeInput, halfLifeUnit];
-      controls.forEach((control) => control.addEventListener("input", scheduleDraw));
+      renderDoseTable();
+      if (tableWrapper) {
+        tableWrapper.addEventListener("input", (event) => {
+          if (event.target.classList.contains("dose-input")) {
+            scheduleDraw();
+          }
+        });
+      }
+      plotDaysInput.addEventListener("input", () => {
+        const rawValue = parseInt(plotDaysInput.value, 10);
+        if (!Number.isFinite(rawValue) || rawValue < 3) {
+          return;
+        }
+        renderDoseTable(rawValue);
+        scheduleDraw();
+      });
+      plotDaysInput.addEventListener("change", () => {
+        renderDoseTable();
+        scheduleDraw();
+      });
+      halfLifeInput.addEventListener("input", scheduleDraw);
       halfLifeUnit.addEventListener("change", scheduleDraw);
       chart.addEventListener("mousemove", handleHover);
       chart.addEventListener("click", handleClick);
