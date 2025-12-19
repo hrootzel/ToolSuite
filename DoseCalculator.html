@@ -165,6 +165,16 @@
         tooltip.classList.remove("is-visible");
       }
 
+      function getEventClientPosition(event) {
+        if (event.touches && event.touches.length > 0) {
+          return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+        }
+        if (event.changedTouches && event.changedTouches.length > 0) {
+          return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+        }
+        return { x: event.clientX, y: event.clientY };
+      }
+
       function formatMg(value) {
         return `${value.toFixed(2)}mg`;
       }
@@ -318,8 +328,9 @@
       function handleHover(event) {
         if (!chartState.hasData || !tooltip) return;
         const rect = chart.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const position = getEventClientPosition(event);
+        const x = position.x - rect.left;
+        const y = position.y - rect.top;
         const { padding, plotWidth, plotHeight, totalHours, points, safeMax, avgLevel } = chartState;
         if (
           x < padding.left ||
@@ -356,8 +367,9 @@
       function handleClick(event) {
         if (!chartState.hasData) return;
         const rect = chart.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const position = getEventClientPosition(event);
+        const x = position.x - rect.left;
+        const y = position.y - rect.top;
         const { padding, plotWidth, plotHeight, totalHours, points } = chartState;
         if (
           x < padding.left ||
@@ -372,6 +384,16 @@
         const index = Math.min(Math.max(hour, 0), points.length - 1);
         chartState.selectedHour = points[index].hour;
         scheduleDraw();
+      }
+
+      function handleTouch(event) {
+        event.preventDefault();
+        handleHover(event);
+      }
+
+      function handleTouchEnd(event) {
+        handleClick(event);
+        hideTooltip();
       }
 
       function drawChart() {
@@ -510,6 +532,10 @@
       chart.addEventListener("mousemove", handleHover);
       chart.addEventListener("click", handleClick);
       chart.addEventListener("mouseleave", hideTooltip);
+      chart.addEventListener("touchstart", handleTouch, { passive: false });
+      chart.addEventListener("touchmove", handleTouch, { passive: false });
+      chart.addEventListener("touchend", handleTouchEnd);
+      chart.addEventListener("touchcancel", handleTouchEnd);
       window.addEventListener("resize", scheduleDraw);
 
       if (window.matchMedia) {

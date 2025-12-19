@@ -371,6 +371,7 @@ code {
   width: 100%;
   height: 300px;
   display: block;
+  touch-action: none;
 }
 
 .chart-tooltip {
