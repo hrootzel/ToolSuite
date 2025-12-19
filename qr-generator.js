@@ -1089,9 +1089,8 @@
       return;
     }
 
-    if (style === "circle" || style === "gapped-circle") {
-      const ratio = style === "gapped-circle" ? MODULE_INSET_RATIO : 1;
-      const { length: diameter, offset } = getScaledMetrics(size, ratio);
+    if (style === "circle") {
+      const { length: diameter, offset } = getScaledMetrics(size, 1);
       const radius = diameter / 2;
       ctx.beginPath();
       ctx.arc(x + offset + radius, y + offset + radius, radius, 0, Math.PI * 2);
@@ -1208,9 +1207,8 @@
       return `<rect x="${fmt(x + offset)}" y="${fmt(y + offset)}" width="${fmt(inner)}" height="${fmt(inner)}"/>`;
     }
 
-    if (style === "circle" || style === "gapped-circle") {
-      const ratio = style === "gapped-circle" ? MODULE_INSET_RATIO : 1;
-      const { length: diameter, offset } = getScaledMetrics(size, ratio);
+    if (style === "circle") {
+      const { length: diameter, offset } = getScaledMetrics(size, 1);
       const radius = diameter / 2;
       return `<circle cx="${fmt(x + offset + radius)}" cy="${fmt(y + offset + radius)}" r="${fmt(radius)}"/>`;
     }
@@ -1277,6 +1275,14 @@
     }
     const parsed = parseInt(value, 10);
     return Number.isFinite(parsed) ? parsed : "auto";
+  }
+
+  function snapScaleToDevicePixels(scale, dpr) {
+    if (!Number.isFinite(dpr) || dpr <= 0) {
+      return scale;
+    }
+    const snapped = Math.round(scale * dpr) / dpr;
+    return Number.isFinite(snapped) ? snapped : scale;
   }
 
   // Wire up UI and generate previews.
@@ -1403,6 +1409,7 @@
       const maskValue = parseAutoNumber(maskSelect.value);
       const scale = parseIntInRange(scaleInput.value, 2, 20, QR_DEFAULTS.scale);
       const margin = parseIntInRange(marginInput.value, 0, 10, QR_DEFAULTS.margin);
+      const renderScale = snapScaleToDevicePixels(scale, window.devicePixelRatio || 1);
       const foreground = foregroundInput.value || QR_DEFAULTS.foreground;
       const background = transparentInput.checked ? "transparent" : backgroundInput.value || QR_DEFAULTS.background;
       const style = styleSelect.value || QR_DEFAULTS.style;
@@ -1413,7 +1420,7 @@
         const qr = makeQr(dataBytes, eccLevel, versionValue, maskValue);
         lastRender = {
           modules: qr.modules,
-          scale,
+          scale: renderScale,
           margin,
           foreground,
           background,
@@ -1423,7 +1430,7 @@
         const canvasSize = renderQr(
           canvas,
           qr.modules,
-          scale,
+          renderScale,
           margin,
           foreground,
           background,
