@@ -20,22 +20,46 @@
 
     <main class="container">
       <section class="card">
-        <div class="card__header">
-          <h2 class="card__title">Serum level over 10 days</h2>
-          <p class="card__subtitle">Assumes 100% bioavailability and doses at the start of each day.</p>
-        </div>
-
-        <div class="field-row">
-          <div class="field">
-            <label class="field__label" for="halfLife">Half-life</label>
-            <div class="control-row">
-              <input class="input input--sm" type="number" id="halfLife" value="6" min="0.1" step="0.1" />
-              <select class="input input--sm" id="halfLifeUnit" aria-label="Half-life unit">
-                <option value="days" selected>Days</option>
-                <option value="hours">Hours</option>
-              </select>
+        <div class="card__header chart-header">
+          <div class="chart-header__left">
+            <h2 class="card__title">Serum level over 10 days</h2>
+            <p class="card__subtitle">Assumes 100% bioavailability and doses at the start of each day.</p>
+            <div class="chart-header__controls">
+              <div class="field">
+                <label class="field__label" for="halfLife">Half-life</label>
+                <div class="control-row">
+                  <input class="input input--sm" type="number" id="halfLife" value="6" min="0.1" step="0.1" />
+                  <select class="input input--sm" id="halfLifeUnit" aria-label="Half-life unit">
+                    <option value="days" selected>Days</option>
+                    <option value="hours">Hours</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
+          <aside class="stats-panel stats-panel--header">
+            <h3 class="stats-title">Chart readout</h3>
+            <p class="stats-subtitle">Click the chart to see the value at a particular point.</p>
+            <div class="stats-selected" id="selectedValue">Click the chart to pin a value.</div>
+            <div class="stats-list">
+              <div class="stats-row">
+                <span>Average</span>
+                <span class="stats-value" id="statAvg">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Min</span>
+                <span class="stats-value" id="statMin">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Max</span>
+                <span class="stats-value" id="statMax">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Std dev</span>
+                <span class="stats-value" id="statStd">--</span>
+              </div>
+            </div>
+          </aside>
         </div>
 
         <div class="chart-area">
@@ -115,6 +139,11 @@
       const chartArea = chart.closest(".chart-area");
       const tooltip = document.getElementById("chartTooltip");
       const ctx = chart.getContext("2d");
+      const selectedValue = document.getElementById("selectedValue");
+      const statAvg = document.getElementById("statAvg");
+      const statMin = document.getElementById("statMin");
+      const statMax = document.getElementById("statMax");
+      const statStd = document.getElementById("statStd");
 
       const HOURS_PER_DAY = 24;
       const DEFAULT_HALF_LIFE = 6;
@@ -123,6 +152,7 @@
         totalHours: 0,
         safeMax: 1,
         avgLevel: 0,
+        selectedHour: null,
         padding: null,
         plotWidth: 0,
         plotHeight: 0,
@@ -133,6 +163,29 @@
       function hideTooltip() {
         if (!tooltip) return;
         tooltip.classList.remove("is-visible");
+      }
+
+      function formatMg(value) {
+        return `${value.toFixed(2)}mg`;
+      }
+
+      function updateStatsDisplay(stats, selectedPoint, hasData) {
+        if (!statAvg || !statMin || !statMax || !statStd || !selectedValue) return;
+        if (!hasData) {
+          statAvg.textContent = "--";
+          statMin.textContent = "--";
+          statMax.textContent = "--";
+          statStd.textContent = "--";
+          selectedValue.textContent = "No data yet.";
+          return;
+        }
+        statAvg.textContent = formatMg(stats.avg);
+        statMin.textContent = formatMg(stats.min);
+        statMax.textContent = formatMg(stats.max);
+        statStd.textContent = formatMg(stats.std);
+        selectedValue.textContent = selectedPoint
+          ? `Day ${Math.floor(selectedPoint.hour / HOURS_PER_DAY) + 1}: ${formatMg(selectedPoint.level)}`
+          : "Click the chart to pin a value.";
       }
 
       function scheduleDraw() {
@@ -201,6 +254,32 @@
         }
 
         return { points, totalHours };
+      }
+
+      function computeStats(points) {
+        if (!points.length) {
+          return {
+            avg: 0,
+            min: 0,
+            max: 0,
+            std: 0
+          };
+        }
+        let sum = 0;
+        let min = Infinity;
+        let max = -Infinity;
+        points.forEach((point) => {
+          sum += point.level;
+          if (point.level < min) min = point.level;
+          if (point.level > max) max = point.level;
+        });
+        const avg = sum / points.length;
+        let variance = 0;
+        points.forEach((point) => {
+          variance += (point.level - avg) ** 2;
+        });
+        const std = Math.sqrt(variance / points.length);
+        return { avg, min, max, std };
       }
 
       function drawAxisLabels(width, height, padding, plotWidth, plotHeight, colors) {
@@ -274,6 +353,27 @@
         positionTooltip(levelX, levelY, `Day ${dayNumber}: ${point.level.toFixed(2)}mg`);
       }
 
+      function handleClick(event) {
+        if (!chartState.hasData) return;
+        const rect = chart.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const { padding, plotWidth, plotHeight, totalHours, points } = chartState;
+        if (
+          x < padding.left ||
+          x > padding.left + plotWidth ||
+          y < padding.top ||
+          y > padding.top + plotHeight
+        ) {
+          return;
+        }
+
+        const hour = Math.round(((x - padding.left) / plotWidth) * totalHours);
+        const index = Math.min(Math.max(hour, 0), points.length - 1);
+        chartState.selectedHour = points[index].hour;
+        scheduleDraw();
+      }
+
       function drawChart() {
         if (!chart) return;
         const { width, height } = resizeCanvas();
@@ -290,18 +390,25 @@
         const doses = getDoses();
         const totalDays = doses.length;
         const { points, totalHours } = computePoints(halfLifeHours, doses);
-        const maxLevel = points.reduce((max, point) => Math.max(max, point.level), 0);
+        const stats = computeStats(points);
+        const maxLevel = stats.max;
         const safeMax = maxLevel > 0 ? maxLevel : 1;
-        const avgLevel =
-          points.length > 0 ? points.reduce((sum, point) => sum + point.level, 0) / points.length : 0;
+        const avgLevel = stats.avg;
+        let selectedPoint = null;
+        if (chartState.selectedHour !== null && points.length > 0) {
+          const index = Math.min(Math.max(chartState.selectedHour, 0), points.length - 1);
+          selectedPoint = points[index];
+        }
         chartState.points = points;
         chartState.totalHours = totalHours;
         chartState.safeMax = safeMax;
         chartState.avgLevel = avgLevel;
+        chartState.selectedPoint = selectedPoint;
         chartState.padding = padding;
         chartState.plotWidth = plotWidth;
         chartState.plotHeight = plotHeight;
         chartState.hasData = maxLevel > 0;
+        updateStatsDisplay(stats, selectedPoint, chartState.hasData);
 
         ctx.lineWidth = 1;
         ctx.strokeStyle = colors.border;
@@ -381,12 +488,27 @@
           ctx.stroke();
           ctx.restore();
         }
+
+        if (selectedPoint) {
+          const markerX = padding.left + (selectedPoint.hour / totalHours) * plotWidth;
+          const markerY = padding.top + plotHeight - (selectedPoint.level / safeMax) * plotHeight;
+          ctx.save();
+          ctx.fillStyle = colors.primary;
+          ctx.strokeStyle = colors.surface;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(markerX, markerY, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       const controls = [...dayInputs, halfLifeInput, halfLifeUnit];
       controls.forEach((control) => control.addEventListener("input", scheduleDraw));
       halfLifeUnit.addEventListener("change", scheduleDraw);
       chart.addEventListener("mousemove", handleHover);
+      chart.addEventListener("click", handleClick);
       chart.addEventListener("mouseleave", hideTooltip);
       window.addEventListener("resize", scheduleDraw);
 
