@@ -256,6 +256,17 @@ code {
   gap: 6px;
 }
 
+.field-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.field-actions .field {
+  flex: 1 1 180px;
+}
+
 .field__label {
   color: var(--muted);
   font-size: 0.92rem;
@@ -361,4 +372,3 @@ code {
 .footer__text {
   max-width: 90ch;
 }
-
