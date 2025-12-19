@@ -37,7 +37,7 @@
               </div>
               <div class="field">
                 <label class="field__label" for="plotDays">Days in plot</label>
-                <input class="input input--sm" type="number" id="plotDays" value="10" min="3" step="1" />
+                <input class="input input--sm" type="number" id="plotDays" value="10" min="1" max="30" step="1" />
               </div>
             </div>
           </div>
@@ -73,13 +73,17 @@
 
         <div class="table-section">
           <h3 class="section__title">Dose schedule</h3>
-          <p class="section__subtitle">Enter the dose in milligrams for each day.</p>
+          <p class="section__subtitle">Click a day to set the dose in milligrams.</p>
           <div class="table-wrapper">
             <table class="dose-table" id="doseTable">
               <caption class="table-caption">Doses are applied at the start of each day.</caption>
               <thead></thead>
               <tbody></tbody>
             </table>
+          </div>
+          <div id="dosePopover" class="dose-popover" role="dialog" aria-hidden="true">
+            <label class="field__label" for="dosePopoverInput">Dose for <span id="dosePopoverLabel">Day 1</span></label>
+            <input class="input dose-popover__input" type="number" id="dosePopoverInput" min="0" step="0.1" />
           </div>
         </div>
       </section>
@@ -90,7 +94,6 @@
     </main>
 
     <script>
-      let dayInputs = [];
       const halfLifeInput = document.getElementById("halfLife");
       const halfLifeUnit = document.getElementById("halfLifeUnit");
       const plotDaysInput = document.getElementById("plotDays");
@@ -99,6 +102,9 @@
       const doseTableHead = doseTable.querySelector("thead");
       const doseTableBody = doseTable.querySelector("tbody");
       const tableWrapper = document.querySelector(".table-wrapper");
+      const dosePopover = document.getElementById("dosePopover");
+      const dosePopoverInput = document.getElementById("dosePopoverInput");
+      const dosePopoverLabel = document.getElementById("dosePopoverLabel");
       const chart = document.getElementById("levelChart");
       const chartArea = chart.closest(".chart-area");
       const tooltip = document.getElementById("chartTooltip");
@@ -112,6 +118,7 @@
       const HOURS_PER_DAY = 24;
       const DEFAULT_HALF_LIFE = 6;
       const DEFAULT_PLOT_DAYS = 10;
+      const MAX_PLOT_DAYS = 30;
       const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       const chartState = {
         points: [],
@@ -124,11 +131,58 @@
         plotHeight: 0,
         hasData: false
       };
+      let doseValues = [];
+      let activeDoseCell = null;
+      let activeDoseIndex = null;
       let rafId = null;
 
       function hideTooltip() {
         if (!tooltip) return;
         tooltip.classList.remove("is-visible");
+      }
+
+      function hideDosePopover() {
+        if (!dosePopover) return;
+        dosePopover.classList.remove("is-visible");
+        dosePopover.setAttribute("aria-hidden", "true");
+        activeDoseCell = null;
+        activeDoseIndex = null;
+      }
+
+      function positionDosePopover(target) {
+        if (!dosePopover) return;
+        const rect = target.getBoundingClientRect();
+        const popRect = dosePopover.getBoundingClientRect();
+        const padding = 8;
+        let left = rect.left + rect.width / 2 - popRect.width / 2;
+        left = Math.min(Math.max(left, padding), window.innerWidth - popRect.width - padding);
+        let top = rect.bottom + padding;
+        if (top + popRect.height > window.innerHeight - padding) {
+          top = rect.top - popRect.height - padding;
+        }
+        top = Math.max(top, padding);
+        dosePopover.style.left = `${left}px`;
+        dosePopover.style.top = `${top}px`;
+      }
+
+      function showDosePopover(target) {
+        if (!dosePopover || !dosePopoverInput || !dosePopoverLabel) return;
+        activeDoseCell = target;
+        const rawIndex = parseInt(target.dataset.dayIndex, 10);
+        activeDoseIndex = Number.isFinite(rawIndex) ? rawIndex - 1 : null;
+        const dayLabel = target.dataset.dayLabel || `Day ${rawIndex || ""}`.trim();
+        dosePopoverLabel.textContent = dayLabel;
+        const currentValue =
+          activeDoseIndex !== null && Number.isFinite(doseValues[activeDoseIndex])
+            ? doseValues[activeDoseIndex]
+            : 0;
+        dosePopoverInput.value = String(currentValue);
+        dosePopoverInput.setAttribute("aria-label", `Dose for ${dayLabel}`);
+        dosePopover.classList.add("is-visible");
+        dosePopover.setAttribute("aria-hidden", "false");
+        positionDosePopover(target);
+        dosePopoverInput.focus();
+        dosePopoverInput.select();
       }
 
       function getEventClientPosition(event) {
@@ -185,64 +239,93 @@
       function getPlotDays() {
         const rawValue = parseInt(plotDaysInput.value, 10);
         let safeValue = Number.isFinite(rawValue) ? rawValue : DEFAULT_PLOT_DAYS;
-        if (safeValue < 3) {
-          safeValue = 3;
+        if (safeValue < 1) {
+          safeValue = 1;
+        }
+        if (safeValue > MAX_PLOT_DAYS) {
+          safeValue = MAX_PLOT_DAYS;
         }
         plotDaysInput.value = String(safeValue);
         return safeValue;
       }
 
+      function formatDoseDisplay(value) {
+        if (!Number.isFinite(value) || value <= 0) {
+          return "0";
+        }
+        const formatted = value.toFixed(2);
+        return formatted.replace(/\.?0+$/, "");
+      }
+
+      function updateDoseTableScale(plotDays) {
+        if (!doseTable) return;
+        const clampedDays = Math.min(Math.max(plotDays, 1), MAX_PLOT_DAYS);
+        const rangeStart = 10;
+        const rangeEnd = MAX_PLOT_DAYS;
+        const t =
+          clampedDays <= rangeStart ? 0 : (clampedDays - rangeStart) / (rangeEnd - rangeStart);
+        const fontSize = 0.95 - t * 0.3;
+        const paddingY = 8 - t * 4;
+        const paddingX = 6 - t * 3;
+        doseTable.style.setProperty("--dose-font-size", `${fontSize.toFixed(3)}rem`);
+        doseTable.style.setProperty("--dose-cell-padding", `${paddingY.toFixed(1)}px ${paddingX.toFixed(1)}px`);
+      }
+
       function renderDoseTable(plotDaysOverride) {
         const plotDays = Number.isFinite(plotDaysOverride) ? plotDaysOverride : getPlotDays();
-        if (!Number.isFinite(plotDays) || plotDays < 3) {
+        if (!Number.isFinite(plotDays) || plotDays < 1) {
           return;
         }
         if (chartDaysLabel) {
           chartDaysLabel.textContent = String(plotDays);
         }
-        const existingValues = dayInputs.map((input) => {
-          const value = parseFloat(input.value);
-          return Number.isFinite(value) ? value : 0;
-        });
+        const existingValues = doseValues.slice();
 
         doseTableHead.textContent = "";
         doseTableBody.textContent = "";
 
         const headRow = document.createElement("tr");
         const bodyRow = document.createElement("tr");
+        const nextValues = [];
 
         for (let i = 0; i < plotDays; i++) {
           const dayName = DAY_LABELS[i % DAY_LABELS.length];
+          const dayLabel = `${dayName} (Day ${i + 1})`;
           const th = document.createElement("th");
           th.scope = "col";
+          th.className = "dose-header";
+          th.dataset.dayIndex = String(i + 1);
+          th.dataset.dayLabel = dayLabel;
           th.textContent = dayName;
           headRow.appendChild(th);
 
           const td = document.createElement("td");
-          const input = document.createElement("input");
-          input.className = "input input--sm dose-input";
-          input.type = "number";
-          input.min = "0";
-          input.step = "0.1";
           const existingValue = existingValues[i];
           const fallbackValue = i === 0 ? 1 : 0;
-          input.value = String(Number.isFinite(existingValue) ? existingValue : fallbackValue);
-          input.setAttribute("aria-label", `Dose for ${dayName} day ${i + 1}`);
-          td.appendChild(input);
+          const doseValue = Number.isFinite(existingValue) ? existingValue : fallbackValue;
+          nextValues.push(doseValue);
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "dose-cell";
+          button.dataset.dayIndex = String(i + 1);
+          button.dataset.dayName = dayName;
+          button.dataset.dayLabel = dayLabel;
+          button.setAttribute("aria-label", `Set dose for ${dayLabel}`);
+          button.textContent = formatDoseDisplay(doseValue);
+          td.appendChild(button);
           bodyRow.appendChild(td);
         }
 
         doseTableHead.appendChild(headRow);
         doseTableBody.appendChild(bodyRow);
-        dayInputs = Array.from(doseTable.querySelectorAll(".dose-input"));
+        doseValues = nextValues;
         chartState.selectedHour = null;
+        hideDosePopover();
+        updateDoseTableScale(plotDays);
       }
 
       function getDoses() {
-        return dayInputs.map((input) => {
-          const value = parseFloat(input.value);
-          return Number.isFinite(value) && value > 0 ? value : 0;
-        });
+        return doseValues.map((value) => (Number.isFinite(value) && value > 0 ? value : 0));
       }
 
       function resizeCanvas() {
@@ -550,15 +633,65 @@
 
       renderDoseTable();
       if (tableWrapper) {
-        tableWrapper.addEventListener("input", (event) => {
-          if (event.target.classList.contains("dose-input")) {
+        tableWrapper.addEventListener("click", (event) => {
+          const header = event.target.closest(".dose-header");
+          if (header) {
+            const rawIndex = parseInt(header.dataset.dayIndex, 10);
+            const row = doseTableBody.querySelector("tr");
+            const cell = Number.isFinite(rawIndex) ? row?.children[rawIndex - 1] : null;
+            const button = cell?.querySelector(".dose-cell");
+            if (button) {
+              showDosePopover(button);
+            }
+            return;
+          }
+          const cell = event.target.closest(".dose-cell");
+          if (cell) {
+            showDosePopover(cell);
+          }
+        });
+        tableWrapper.addEventListener("focusin", (event) => {
+          const target = event.target;
+          if (target.classList.contains("dose-cell")) {
+            showDosePopover(target);
+          }
+        });
+      }
+      if (dosePopoverInput) {
+        dosePopoverInput.addEventListener("input", () => {
+          if (activeDoseIndex === null || !Number.isFinite(activeDoseIndex)) return;
+          const rawValue = parseFloat(dosePopoverInput.value);
+          if (!Number.isFinite(rawValue)) return;
+          const safeValue = Math.max(rawValue, 0);
+          doseValues[activeDoseIndex] = safeValue;
+          if (activeDoseCell) {
+            activeDoseCell.textContent = formatDoseDisplay(safeValue);
+          }
+          scheduleDraw();
+        });
+        dosePopoverInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            const rawValue = parseFloat(dosePopoverInput.value);
+            const safeValue = Number.isFinite(rawValue) ? Math.max(rawValue, 0) : 0;
+            if (activeDoseIndex !== null && Number.isFinite(activeDoseIndex)) {
+              doseValues[activeDoseIndex] = safeValue;
+              if (activeDoseCell) {
+                activeDoseCell.textContent = formatDoseDisplay(safeValue);
+              }
+            }
+            hideDosePopover();
             scheduleDraw();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            hideDosePopover();
           }
         });
       }
       plotDaysInput.addEventListener("input", () => {
         const rawValue = parseInt(plotDaysInput.value, 10);
-        if (!Number.isFinite(rawValue) || rawValue < 3) {
+        if (!Number.isFinite(rawValue) || rawValue < 1 || rawValue > MAX_PLOT_DAYS) {
           return;
         }
         renderDoseTable(rawValue);
@@ -578,6 +711,17 @@
       chart.addEventListener("touchend", handleTouchEnd);
       chart.addEventListener("touchcancel", handleTouchEnd);
       window.addEventListener("resize", scheduleDraw);
+      window.addEventListener("resize", () => {
+        if (activeDoseCell) {
+          positionDosePopover(activeDoseCell);
+        }
+      });
+      document.addEventListener("pointerdown", (event) => {
+        if (!dosePopover || !dosePopover.classList.contains("is-visible")) return;
+        if (dosePopover.contains(event.target)) return;
+        if (event.target.closest(".dose-cell")) return;
+        hideDosePopover();
+      });
 
       if (window.matchMedia) {
         const schemeQuery = window.matchMedia("(prefers-color-scheme: dark)");

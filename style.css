@@ -76,7 +76,7 @@ code {
 }
 
 .container {
-  width: min(100% - 2rem, 1040px);
+  width: min(100% - 1rem, 1120px);
   margin-inline: auto;
 }
 
@@ -215,6 +215,11 @@ code {
   background: var(--primary-hover);
 }
 
+.btn--wide {
+  width: min(100%, 13rem);
+  justify-content: center;
+}
+
 .btn--ghost {
   background: transparent;
 }
@@ -229,6 +234,11 @@ code {
 }
 
 .split {
+  display: grid;
+  gap: 16px;
+}
+
+.stack {
   display: grid;
   gap: 16px;
 }
@@ -410,19 +420,33 @@ code {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+  font-size: var(--dose-font-size, 0.95rem);
 }
 
 .dose-table th,
 .dose-table td {
   border: 1px solid var(--border);
-  padding: 10px;
   text-align: center;
 }
 
 .dose-table th {
+  padding: var(--dose-cell-padding, 10px);
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.85em;
+}
+
+.dose-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.dose-header:hover {
+  background: var(--surface);
+}
+
+.dose-table td {
+  padding: 0;
 }
 
 .table-caption {
@@ -514,9 +538,64 @@ code {
   font-weight: 600;
 }
 
-.dose-input {
+.dose-cell {
   width: 100%;
+  padding: var(--dose-cell-padding, 6px 4px);
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
   text-align: center;
+  cursor: pointer;
+  line-height: 1.2;
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  white-space: nowrap;
+}
+
+.dose-cell:hover {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.dose-cell:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.dose-popover {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 20;
+  min-width: 200px;
+  max-width: min(320px, 90vw);
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.dose-popover.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.dose-popover__input {
+  font-size: 1.1rem;
+  padding: 12px 14px;
 }
 
 .password {
