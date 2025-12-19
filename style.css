@@ -382,7 +382,7 @@ code {
 .qr-preview {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #000000;
+  background: var(--surface);
   padding: 12px;
   display: grid;
   place-items: center;
@@ -404,6 +404,11 @@ code {
 
 .status-text--error {
   color: #b91c1c;
+}
+
+.input--color {
+  padding: 6px;
+  height: 42px;
 }
 
 .chart-area {

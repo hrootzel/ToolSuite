@@ -6,7 +6,9 @@
     errorCorrection: "M",
     mask: "auto",
     scale: 8,
-    margin: 4
+    margin: 4,
+    foreground: "#000000",
+    background: "#ffffff"
   };
 
   const ECC_LEVELS = {
@@ -946,7 +948,7 @@
   }
 
   // Render matrix to a black canvas with white modules.
-  function renderQr(canvas, modules, scale, margin) {
+  function renderQr(canvas, modules, scale, margin, foreground, background) {
     const size = modules.length;
     const dpr = window.devicePixelRatio || 1;
     const canvasSize = (size + margin * 2) * scale;
@@ -957,9 +959,9 @@
     const ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = background;
     ctx.fillRect(0, 0, canvasSize, canvasSize);
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = foreground;
     for (let row = 0; row < size; row++) {
       for (let col = 0; col < size; col++) {
         if (modules[row][col]) {
@@ -979,12 +981,24 @@
     const maskSelect = document.getElementById("qrMask");
     const scaleInput = document.getElementById("qrScale");
     const marginInput = document.getElementById("qrMargin");
+    const foregroundInput = document.getElementById("qrForeground");
+    const backgroundInput = document.getElementById("qrBackground");
     const generateButton = document.getElementById("qrGenerate");
     const canvas = document.getElementById("qrCanvas");
     const status = document.getElementById("qrStatus");
     const encoder = new TextEncoder();
 
-    if (!textInput || !versionSelect || !eccSelect || !maskSelect || !scaleInput || !marginInput || !canvas) {
+    if (
+      !textInput ||
+      !versionSelect ||
+      !eccSelect ||
+      !maskSelect ||
+      !scaleInput ||
+      !marginInput ||
+      !foregroundInput ||
+      !backgroundInput ||
+      !canvas
+    ) {
       return;
     }
 
@@ -1005,6 +1019,8 @@
     maskSelect.value = QR_DEFAULTS.mask;
     scaleInput.value = String(QR_DEFAULTS.scale);
     marginInput.value = String(QR_DEFAULTS.margin);
+    foregroundInput.value = QR_DEFAULTS.foreground;
+    backgroundInput.value = QR_DEFAULTS.background;
     textInput.value = "ToolSuite";
 
     function updateStatus(message, isError) {
@@ -1031,11 +1047,13 @@
       const maskValue = maskSelect.value === "auto" ? "auto" : parseInt(maskSelect.value, 10);
       const scale = Math.max(2, Math.min(20, parseInt(scaleInput.value, 10) || QR_DEFAULTS.scale));
       const margin = Math.max(0, Math.min(10, parseInt(marginInput.value, 10) || QR_DEFAULTS.margin));
+      const foreground = foregroundInput.value || QR_DEFAULTS.foreground;
+      const background = backgroundInput.value || QR_DEFAULTS.background;
       scaleInput.value = String(scale);
       marginInput.value = String(margin);
       try {
         const qr = makeQr(dataBytes, eccLevel, versionValue, maskValue);
-        renderQr(canvas, qr.modules, scale, margin);
+        renderQr(canvas, qr.modules, scale, margin, foreground, background);
         updateStatus(`Version ${qr.version} • Mask ${qr.maskPattern} • ${dataBytes.length} bytes`, false);
       } catch (error) {
         clearCanvas();
@@ -1062,6 +1080,8 @@
     maskSelect.addEventListener("change", generate);
     scaleInput.addEventListener("input", generate);
     marginInput.addEventListener("input", generate);
+    foregroundInput.addEventListener("input", generate);
+    backgroundInput.addEventListener("input", generate);
 
     generate();
   }
