@@ -40,6 +40,7 @@
 
         <div class="chart-area">
           <canvas id="levelChart" class="chart-canvas" role="img" aria-label="Estimated serum level over time"></canvas>
+          <div id="chartTooltip" class="chart-tooltip" role="status" aria-live="polite"></div>
         </div>
 
         <div class="table-section">
@@ -65,34 +66,34 @@
               <tbody>
                 <tr>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Monday day 1" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="1" aria-label="Dose for Monday day 1" />
                   </td>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Tuesday day 2" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Tuesday day 2" />
                   </td>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Wednesday day 3" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Wednesday day 3" />
                   </td>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Thursday day 4" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Thursday day 4" />
                   </td>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Friday day 5" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Friday day 5" />
                   </td>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Saturday day 6" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Saturday day 6" />
                   </td>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Sunday day 7" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Sunday day 7" />
                   </td>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Monday day 8" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Monday day 8" />
                   </td>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Tuesday day 9" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Tuesday day 9" />
                   </td>
                   <td>
-                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Wednesday day 10" />
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="0" aria-label="Dose for Wednesday day 10" />
                   </td>
                 </tr>
               </tbody>
@@ -111,14 +112,31 @@
       const halfLifeInput = document.getElementById("halfLife");
       const halfLifeUnit = document.getElementById("halfLifeUnit");
       const chart = document.getElementById("levelChart");
+      const chartArea = chart.closest(".chart-area");
+      const tooltip = document.getElementById("chartTooltip");
       const ctx = chart.getContext("2d");
 
       const HOURS_PER_DAY = 24;
       const DEFAULT_HALF_LIFE = 6;
+      const chartState = {
+        points: [],
+        totalHours: 0,
+        safeMax: 1,
+        padding: null,
+        plotWidth: 0,
+        plotHeight: 0,
+        hasData: false
+      };
       let rafId = null;
+
+      function hideTooltip() {
+        if (!tooltip) return;
+        tooltip.classList.remove("is-visible");
+      }
 
       function scheduleDraw() {
         if (rafId) return;
+        hideTooltip();
         rafId = requestAnimationFrame(() => {
           rafId = null;
           drawChart();
@@ -184,6 +202,69 @@
         return { points, totalHours };
       }
 
+      function drawAxisLabels(width, height, padding, plotWidth, plotHeight, colors) {
+        ctx.save();
+        ctx.fillStyle = colors.muted;
+        ctx.font =
+          "12px system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText("Days", padding.left + plotWidth / 2, height - 6);
+        ctx.translate(12, padding.top + plotHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textBaseline = "middle";
+        ctx.fillText("Level (mg)", 0, 0);
+        ctx.restore();
+      }
+
+      function positionTooltip(x, y, label) {
+        if (!tooltip || !chartArea) return;
+        tooltip.textContent = label;
+        const areaWidth = chartArea.clientWidth;
+        const areaHeight = chartArea.clientHeight;
+        const tooltipWidth = tooltip.offsetWidth;
+        const tooltipHeight = tooltip.offsetHeight;
+        const minLeft = tooltipWidth / 2 + 8;
+        const maxLeft = areaWidth - tooltipWidth / 2 - 8;
+        const minTop = tooltipHeight + 12;
+        let left = Math.min(Math.max(x, minLeft), maxLeft);
+        let top = Math.max(y, minTop);
+        top = Math.min(top, areaHeight - 8);
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+        tooltip.classList.add("is-visible");
+      }
+
+      function handleHover(event) {
+        if (!chartState.hasData || !tooltip) return;
+        const rect = chart.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const { padding, plotWidth, plotHeight, totalHours, points, safeMax } = chartState;
+        if (
+          x < padding.left ||
+          x > padding.left + plotWidth ||
+          y < padding.top ||
+          y > padding.top + plotHeight
+        ) {
+          hideTooltip();
+          return;
+        }
+
+        const hour = Math.round(((x - padding.left) / plotWidth) * totalHours);
+        const index = Math.min(Math.max(hour, 0), points.length - 1);
+        const point = points[index];
+        if (!point || point.level <= 0) {
+          hideTooltip();
+          return;
+        }
+
+        const levelX = padding.left + (point.hour / totalHours) * plotWidth;
+        const levelY = padding.top + plotHeight - (point.level / safeMax) * plotHeight;
+        const dayNumber = Math.floor(point.hour / HOURS_PER_DAY) + 1;
+        positionTooltip(levelX, levelY, `Day ${dayNumber}: ${point.level.toFixed(2)}mg`);
+      }
+
       function drawChart() {
         if (!chart) return;
         const { width, height } = resizeCanvas();
@@ -202,6 +283,13 @@
         const { points, totalHours } = computePoints(halfLifeHours, doses);
         const maxLevel = points.reduce((max, point) => Math.max(max, point.level), 0);
         const safeMax = maxLevel > 0 ? maxLevel : 1;
+        chartState.points = points;
+        chartState.totalHours = totalHours;
+        chartState.safeMax = safeMax;
+        chartState.padding = padding;
+        chartState.plotWidth = plotWidth;
+        chartState.plotHeight = plotHeight;
+        chartState.hasData = maxLevel > 0;
 
         ctx.lineWidth = 1;
         ctx.strokeStyle = colors.border;
@@ -224,6 +312,7 @@
         }
 
         ctx.globalAlpha = 1;
+        drawAxisLabels(width, height, padding, plotWidth, plotHeight, colors);
 
         if (maxLevel === 0) {
           ctx.fillStyle = colors.muted;
@@ -231,6 +320,7 @@
             "13px system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("Enter a dose to see the curve", width / 2, height / 2);
+          hideTooltip();
           return;
         }
 
@@ -270,6 +360,8 @@
       const controls = [...dayInputs, halfLifeInput, halfLifeUnit];
       controls.forEach((control) => control.addEventListener("input", scheduleDraw));
       halfLifeUnit.addEventListener("change", scheduleDraw);
+      chart.addEventListener("mousemove", handleHover);
+      chart.addEventListener("mouseleave", hideTooltip);
       window.addEventListener("resize", scheduleDraw);
 
       if (window.matchMedia) {
