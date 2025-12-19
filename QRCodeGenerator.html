@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>QR Code Generator - ToolSuite</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header site-header--compact">
+      <div class="container header-row">
+        <a class="btn btn--ghost" href="index.html">Back</a>
+        <div>
+          <h1 class="site-header__title">QR Code Generator</h1>
+          <p class="site-header__subtitle">Generate QR codes locally with configurable settings.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="split">
+        <section class="card">
+          <div class="card__header">
+            <h2 class="card__title">Input</h2>
+            <p class="card__subtitle">No network calls. Everything runs in your browser.</p>
+          </div>
+
+          <form class="form" id="qrForm">
+            <div class="field">
+              <label class="field__label" for="qrText">Text or URL</label>
+              <textarea
+                class="input"
+                id="qrText"
+                rows="5"
+                placeholder="Enter text or a URL to encode"
+              ></textarea>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field__label" for="qrVersion">Version</label>
+                <select class="input input--sm" id="qrVersion"></select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="qrEcc">Error correction</label>
+                <select class="input input--sm" id="qrEcc">
+                  <option value="L">L (7%)</option>
+                  <option value="M" selected>M (15%)</option>
+                  <option value="Q">Q (25%)</option>
+                  <option value="H">H (30%)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="qrMask">Mask</label>
+                <select class="input input--sm" id="qrMask">
+                  <option value="auto" selected>Auto</option>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field__label" for="qrScale">Scale</label>
+                <input class="input input--sm" type="number" id="qrScale" min="2" max="20" value="8" />
+              </div>
+              <div class="field">
+                <label class="field__label" for="qrMargin">Margin</label>
+                <input class="input input--sm" type="number" id="qrMargin" min="0" max="10" value="4" />
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="btn btn--primary" type="button" id="qrGenerate">Generate</button>
+            </div>
+
+            <div class="status-text" id="qrStatus">Ready to generate.</div>
+          </form>
+        </section>
+
+        <section class="card">
+          <div class="card__header">
+            <h2 class="card__title">Preview</h2>
+            <p class="card__subtitle">White modules on a black background.</p>
+          </div>
+
+          <div class="qr-preview">
+            <canvas id="qrCanvas" class="qr-canvas" width="320" height="320"></canvas>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="qr-generator.js"></script>
+  </body>
+</html>

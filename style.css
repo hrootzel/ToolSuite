@@ -379,6 +379,33 @@ code {
   min-height: 64px;
 }
 
+.qr-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #000000;
+  padding: 12px;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+}
+
+.qr-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.status-text {
+  margin-top: 6px;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.status-text--error {
+  color: #b91c1c;
+}
+
 .chart-area {
   margin-top: 16px;
   padding: 12px;
