@@ -392,6 +392,7 @@
   const EXP_TABLE = new Array(256);
   const LOG_TABLE = new Array(256);
 
+  // Prepare Galois field lookup tables for Reed-Solomon math.
   function initGaloisTables() {
     for (let i = 0; i < 8; i++) {
       EXP_TABLE[i] = 1 << i;
@@ -441,6 +442,7 @@
     return poly;
   }
 
+  // Compute RS error correction bytes for a data block.
   function rsEncode(data, ecCount) {
     const gen = getGeneratorPoly(ecCount);
     const mod = data.slice();
@@ -457,6 +459,7 @@
     return mod.slice(mod.length - ecCount);
   }
 
+  // Minimal bit buffer for assembling QR payloads.
   class BitBuffer {
     constructor() {
       this.buffer = [];
@@ -486,6 +489,7 @@
     }
   }
 
+  // Returns the RS block layout for a given version and ECC level.
   function rsBlocks(version, eccOffset) {
     const entry = RS_BLOCK_TABLE[(version - 1) * 4 + eccOffset];
     const blocks = [];
@@ -509,6 +513,7 @@
     return version < 10 ? 8 : 16;
   }
 
+  // Find the smallest version that fits the data for the selected ECC.
   function chooseVersion(dataBytes, eccOffset) {
     for (let version = 1; version <= 40; version++) {
       const needed = 4 + lengthBitsFor(version) + dataBytes.length * 8;
@@ -519,6 +524,7 @@
     return null;
   }
 
+  // Build payload bytes (data + RS error correction) for the QR matrix.
   function createData(version, eccOffset, dataBytes) {
     const buffer = new BitBuffer();
     buffer.put(0x4, 4);
@@ -609,6 +615,7 @@
     return (data << 12) | d;
   }
 
+  // Finder patterns in three corners.
   function setupPositionProbePattern(modules, row, col) {
     const count = modules.length;
     for (let r = -1; r <= 7; r++) {
@@ -628,6 +635,7 @@
     }
   }
 
+  // Timing pattern along row/column 6.
   function setupTimingPattern(modules) {
     const count = modules.length;
     for (let r = 8; r < count - 8; r++) {
@@ -640,6 +648,7 @@
     }
   }
 
+  // Alignment patterns for higher versions.
   function setupPositionAdjustPattern(modules, version) {
     const pos = PATTERN_POSITION_TABLE[version - 1];
     for (let i = 0; i < pos.length; i++) {
@@ -673,6 +682,7 @@
     }
   }
 
+  // Format bits (ECC + mask).
   function setupTypeInfo(modules, eccCode, maskPattern, test) {
     const data = (eccCode << 3) | maskPattern;
     const bits = BCHTypeInfo(data);
@@ -726,6 +736,7 @@
     }
   }
 
+  // Map payload bits into the QR module grid.
   function mapData(modules, data, maskPattern) {
     const count = modules.length;
     let inc = -1;
@@ -764,6 +775,7 @@
     }
   }
 
+  // Penalty scoring for mask selection.
   function lostPoint(modules) {
     const count = modules.length;
     let lostPoint = 0;
@@ -905,6 +917,7 @@
     return modules;
   }
 
+  // Generate the QR matrix with the chosen configuration.
   function makeQr(dataBytes, eccLevel, version, maskChoice) {
     const ecc = ECC_LEVELS[eccLevel] || ECC_LEVELS.M;
     const eccOffset = ecc.rsOffset;
@@ -932,6 +945,7 @@
     return { modules, version: actualVersion, maskPattern };
   }
 
+  // Render matrix to a black canvas with white modules.
   function renderQr(canvas, modules, scale, margin) {
     const size = modules.length;
     const dpr = window.devicePixelRatio || 1;
@@ -955,6 +969,7 @@
     }
   }
 
+  // Wire up UI and generate previews.
   function init() {
     initGaloisTables();
 
