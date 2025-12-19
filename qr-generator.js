@@ -1007,6 +1007,45 @@
     };
   }
 
+  const MODULE_INSET_RATIO = 0.7;
+  const ROUNDED_RADIUS_RATIO = 0.55;
+  const SQUARE_BLEED = 0.4;
+
+  function getScaledMetrics(size, ratio = MODULE_INSET_RATIO) {
+    const length = Math.max(1, Math.round(size * ratio));
+    const offset = (size - length) / 2;
+    return { length, offset };
+  }
+
+  function getRoundedCorners(size, edges) {
+    const radius = Math.max(1, size * ROUNDED_RADIUS_RATIO);
+    return {
+      radius,
+      roundTopLeft: !edges.up && !edges.left,
+      roundTopRight: !edges.up && !edges.right,
+      roundBottomRight: !edges.down && !edges.right,
+      roundBottomLeft: !edges.down && !edges.left
+    };
+  }
+
+  function forEachModule(modules, style, positionStyle, callback) {
+    const size = modules.length;
+    const positionPatternStyle = positionStyle || style;
+    const { isPositionPatternCell } = getPositionPatterns(size);
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
+        if (!modules[row][col]) continue;
+        const isPositionModule = isPositionPatternCell(row, col);
+        const cellStyle = isPositionModule ? positionPatternStyle : style;
+        const neighbors =
+          cellStyle === "rounded"
+            ? getRoundedNeighbors(modules, row, col, isPositionModule, isPositionPatternCell)
+            : null;
+        callback(row, col, cellStyle, neighbors);
+      }
+    }
+  }
+
   // Render matrix to a canvas with configurable module style.
   function renderQr(canvas, modules, scale, margin, foreground, background, style, positionStyle) {
     const size = modules.length;
@@ -1025,50 +1064,35 @@
       ctx.fillRect(0, 0, canvasSize, canvasSize);
     }
     ctx.fillStyle = foreground;
-    const positionPatternStyle = positionStyle || style;
-    const { isPositionPatternCell } = getPositionPatterns(size);
-    for (let row = 0; row < size; row++) {
-      for (let col = 0; col < size; col++) {
-        if (modules[row][col]) {
-          const isPositionModule = isPositionPatternCell(row, col);
-          const cellStyle = isPositionModule ? positionPatternStyle : style;
-          const neighbors = cellStyle === "rounded"
-            ? getRoundedNeighbors(modules, row, col, isPositionModule, isPositionPatternCell)
-            : null;
-          drawModule(ctx, (col + margin) * scale, (row + margin) * scale, scale, cellStyle, neighbors);
-        }
-      }
-    }
+    forEachModule(modules, style, positionStyle, (row, col, cellStyle, neighbors) => {
+      drawModule(ctx, (col + margin) * scale, (row + margin) * scale, scale, cellStyle, neighbors);
+    });
     return canvasSize;
   }
 
   function drawModule(ctx, x, y, size, style, neighbors) {
     if (style === "vertical-bars") {
-      const barWidth = Math.max(1, Math.round(size * 0.7));
-      const offset = (size - barWidth) / 2;
+      const { length: barWidth, offset } = getScaledMetrics(size);
       ctx.fillRect(x + offset, y, barWidth, size);
       return;
     }
 
     if (style === "horizontal-bars") {
-      const barHeight = Math.max(1, Math.round(size * 0.7));
-      const offset = (size - barHeight) / 2;
+      const { length: barHeight, offset } = getScaledMetrics(size);
       ctx.fillRect(x, y + offset, size, barHeight);
       return;
     }
 
     if (style === "gapped-square") {
-      const inner = Math.max(1, Math.round(size * 0.7));
-      const offset = (size - inner) / 2;
+      const { length: inner, offset } = getScaledMetrics(size);
       ctx.fillRect(x + offset, y + offset, inner, inner);
       return;
     }
 
     if (style === "circle" || style === "gapped-circle") {
-      const scale = style === "gapped-circle" ? 0.7 : 1;
-      const diameter = Math.max(1, Math.round(size * scale));
+      const ratio = style === "gapped-circle" ? MODULE_INSET_RATIO : 1;
+      const { length: diameter, offset } = getScaledMetrics(size, ratio);
       const radius = diameter / 2;
-      const offset = (size - diameter) / 2;
       ctx.beginPath();
       ctx.arc(x + offset + radius, y + offset + radius, radius, 0, Math.PI * 2);
       ctx.fill();
@@ -1093,8 +1117,7 @@
     }
 
     if (style === "square") {
-      const bleed = 0.4;
-      ctx.fillRect(x - bleed, y - bleed, size + bleed * 2, size + bleed * 2);
+      ctx.fillRect(x - SQUARE_BLEED, y - SQUARE_BLEED, size + SQUARE_BLEED * 2, size + SQUARE_BLEED * 2);
       return;
     }
 
@@ -1103,11 +1126,7 @@
 
   // Round only the outer corners for joined modules.
   function drawRoundedModule(ctx, x, y, size, edges) {
-    const radius = Math.max(1, size * 0.55);
-    const roundTopLeft = !edges.up && !edges.left;
-    const roundTopRight = !edges.up && !edges.right;
-    const roundBottomRight = !edges.down && !edges.right;
-    const roundBottomLeft = !edges.down && !edges.left;
+    const { radius, roundTopLeft, roundTopRight, roundBottomRight, roundBottomLeft } = getRoundedCorners(size, edges);
 
     ctx.beginPath();
     ctx.moveTo(x + (roundTopLeft ? radius : 0), y);
@@ -1145,11 +1164,7 @@
   }
 
   function buildRoundedPath(x, y, size, edges) {
-    const radius = Math.max(1, size * 0.55);
-    const roundTopLeft = !edges.up && !edges.left;
-    const roundTopRight = !edges.up && !edges.right;
-    const roundBottomRight = !edges.down && !edges.right;
-    const roundBottomLeft = !edges.down && !edges.left;
+    const { radius, roundTopLeft, roundTopRight, roundBottomRight, roundBottomLeft } = getRoundedCorners(size, edges);
     const fmt = formatNumber;
 
     const commands = [
@@ -1179,28 +1194,24 @@
     const fmt = formatNumber;
 
     if (style === "vertical-bars") {
-      const barWidth = Math.max(1, Math.round(size * 0.7));
-      const offset = (size - barWidth) / 2;
+      const { length: barWidth, offset } = getScaledMetrics(size);
       return `<rect x="${fmt(x + offset)}" y="${fmt(y)}" width="${fmt(barWidth)}" height="${fmt(size)}"/>`;
     }
 
     if (style === "horizontal-bars") {
-      const barHeight = Math.max(1, Math.round(size * 0.7));
-      const offset = (size - barHeight) / 2;
+      const { length: barHeight, offset } = getScaledMetrics(size);
       return `<rect x="${fmt(x)}" y="${fmt(y + offset)}" width="${fmt(size)}" height="${fmt(barHeight)}"/>`;
     }
 
     if (style === "gapped-square") {
-      const inner = Math.max(1, Math.round(size * 0.7));
-      const offset = (size - inner) / 2;
+      const { length: inner, offset } = getScaledMetrics(size);
       return `<rect x="${fmt(x + offset)}" y="${fmt(y + offset)}" width="${fmt(inner)}" height="${fmt(inner)}"/>`;
     }
 
     if (style === "circle" || style === "gapped-circle") {
-      const scale = style === "gapped-circle" ? 0.7 : 1;
-      const diameter = Math.max(1, Math.round(size * scale));
+      const ratio = style === "gapped-circle" ? MODULE_INSET_RATIO : 1;
+      const { length: diameter, offset } = getScaledMetrics(size, ratio);
       const radius = diameter / 2;
-      const offset = (size - diameter) / 2;
       return `<circle cx="${fmt(x + offset + radius)}" cy="${fmt(y + offset + radius)}" r="${fmt(radius)}"/>`;
     }
 
@@ -1222,8 +1233,6 @@
   function buildSvg(modules, scale, margin, foreground, background, style, positionStyle) {
     const size = modules.length;
     const totalSize = (size + margin * 2) * scale;
-    const positionPatternStyle = positionStyle || style;
-    const { isPositionPatternCell } = getPositionPatterns(size);
     const parts = [
       '<?xml version="1.0" encoding="UTF-8"?>',
       `<svg xmlns="http://www.w3.org/2000/svg" width="${totalSize}" height="${totalSize}" viewBox="0 0 ${totalSize} ${totalSize}" shape-rendering="crispEdges">`
@@ -1233,20 +1242,11 @@
     }
     parts.push(`<g fill="${foreground}">`);
 
-    for (let row = 0; row < size; row++) {
-      for (let col = 0; col < size; col++) {
-        if (modules[row][col]) {
-          const isPositionModule = isPositionPatternCell(row, col);
-          const cellStyle = isPositionModule ? positionPatternStyle : style;
-          const neighbors = cellStyle === "rounded"
-            ? getRoundedNeighbors(modules, row, col, isPositionModule, isPositionPatternCell)
-            : null;
-          const x = (col + margin) * scale;
-          const y = (row + margin) * scale;
-          parts.push(moduleToSvg(x, y, scale, cellStyle, neighbors));
-        }
-      }
-    }
+    forEachModule(modules, style, positionStyle, (row, col, cellStyle, neighbors) => {
+      const x = (col + margin) * scale;
+      const y = (row + margin) * scale;
+      parts.push(moduleToSvg(x, y, scale, cellStyle, neighbors));
+    });
 
     parts.push("</g></svg>");
     return parts.join("");
@@ -1259,6 +1259,24 @@
     link.download = filename;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 500);
+  }
+
+  function clampNumber(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function parseIntInRange(value, min, max, fallback) {
+    const parsed = parseInt(value, 10);
+    const numberValue = Number.isFinite(parsed) ? parsed : fallback;
+    return clampNumber(numberValue, min, max);
+  }
+
+  function parseAutoNumber(value) {
+    if (value === "auto") {
+      return "auto";
+    }
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : "auto";
   }
 
   // Wire up UI and generate previews.
@@ -1381,10 +1399,10 @@
       }
       const dataBytes = Array.from(encoder.encode(text));
       const eccLevel = eccSelect.value;
-      const versionValue = versionSelect.value === "auto" ? "auto" : parseInt(versionSelect.value, 10);
-      const maskValue = maskSelect.value === "auto" ? "auto" : parseInt(maskSelect.value, 10);
-      const scale = Math.max(2, Math.min(20, parseInt(scaleInput.value, 10) || QR_DEFAULTS.scale));
-      const margin = Math.max(0, Math.min(10, parseInt(marginInput.value, 10) || QR_DEFAULTS.margin));
+      const versionValue = parseAutoNumber(versionSelect.value);
+      const maskValue = parseAutoNumber(maskSelect.value);
+      const scale = parseIntInRange(scaleInput.value, 2, 20, QR_DEFAULTS.scale);
+      const margin = parseIntInRange(marginInput.value, 0, 10, QR_DEFAULTS.margin);
       const foreground = foregroundInput.value || QR_DEFAULTS.foreground;
       const background = transparentInput.checked ? "transparent" : backgroundInput.value || QR_DEFAULTS.background;
       const style = styleSelect.value || QR_DEFAULTS.style;
@@ -1472,21 +1490,20 @@
     }
 
     textInput.addEventListener("input", scheduleGenerate);
-    versionSelect.addEventListener("change", generate);
-    eccSelect.addEventListener("change", generate);
-    maskSelect.addEventListener("change", generate);
-    scaleInput.addEventListener("input", generate);
-    marginInput.addEventListener("input", generate);
-    foregroundInput.addEventListener("input", generate);
-    backgroundInput.addEventListener("input", generate);
+    [versionSelect, eccSelect, maskSelect, styleSelect, positionStyleSelect].forEach((input) =>
+      input.addEventListener("change", generate)
+    );
+    [scaleInput, marginInput, foregroundInput, backgroundInput].forEach((input) =>
+      input.addEventListener("input", generate)
+    );
     transparentInput.addEventListener("change", () => {
       updateTransparencyState();
       generate();
     });
-    styleSelect.addEventListener("change", generate);
-    positionStyleSelect.addEventListener("change", generate);
-    savePngButton?.addEventListener("click", savePng);
-    saveSvgButton?.addEventListener("click", saveSvg);
+    [
+      [savePngButton, savePng],
+      [saveSvgButton, saveSvg]
+    ].forEach(([button, handler]) => button?.addEventListener("click", handler));
     window.addEventListener("resize", () => updateLayout(lastCanvasSize));
 
     updateTransparencyState();
