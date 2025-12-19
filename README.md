@@ -15,6 +15,7 @@ Then open `http://localhost:8000/`.
 ## Utilities
 
 - Strong Password Generator: `StrongPassword.html`
+- Dose Calculator: `DoseCalculator.html`
 
 ## Add a new utility
 

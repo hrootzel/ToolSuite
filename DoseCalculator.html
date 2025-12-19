@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Dose Calculator - ToolSuite</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header site-header--compact">
+      <div class="container header-row">
+        <a class="btn btn--ghost" href="index.html">Back</a>
+        <div>
+          <h1 class="site-header__title">Dose Calculator</h1>
+          <p class="site-header__subtitle">Estimate medicine levels using simple half-life decay.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <div class="card__header">
+          <h2 class="card__title">Serum level over 10 days</h2>
+          <p class="card__subtitle">Assumes 100% bioavailability and doses at the start of each day.</p>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label" for="halfLife">Half-life</label>
+            <div class="control-row">
+              <input class="input input--sm" type="number" id="halfLife" value="6" min="0.1" step="0.1" />
+              <select class="input input--sm" id="halfLifeUnit" aria-label="Half-life unit">
+                <option value="days" selected>Days</option>
+                <option value="hours">Hours</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-area">
+          <canvas id="levelChart" class="chart-canvas" role="img" aria-label="Estimated serum level over time"></canvas>
+        </div>
+
+        <div class="table-section">
+          <h3 class="section__title">Dose schedule</h3>
+          <p class="section__subtitle">Enter the dose in milligrams for each day.</p>
+          <div class="table-wrapper">
+            <table class="dose-table">
+              <caption class="table-caption">Doses are applied at the start of each day.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Mon</th>
+                  <th scope="col">Tue</th>
+                  <th scope="col">Wed</th>
+                  <th scope="col">Thu</th>
+                  <th scope="col">Fri</th>
+                  <th scope="col">Sat</th>
+                  <th scope="col">Sun</th>
+                  <th scope="col">Mon</th>
+                  <th scope="col">Tue</th>
+                  <th scope="col">Wed</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Monday day 1" />
+                  </td>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Tuesday day 2" />
+                  </td>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Wednesday day 3" />
+                  </td>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Thursday day 4" />
+                  </td>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Friday day 5" />
+                  </td>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Saturday day 6" />
+                  </td>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Sunday day 7" />
+                  </td>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Monday day 8" />
+                  </td>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Tuesday day 9" />
+                  </td>
+                  <td>
+                    <input class="input input--sm dose-input" type="number" min="0" step="0.1" value="10" aria-label="Dose for Wednesday day 10" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p class="footer__text">For planning only; not medical advice.</p>
+      </footer>
+    </main>
+
+    <script>
+      const dayInputs = Array.from(document.querySelectorAll(".dose-input"));
+      const halfLifeInput = document.getElementById("halfLife");
+      const halfLifeUnit = document.getElementById("halfLifeUnit");
+      const chart = document.getElementById("levelChart");
+      const ctx = chart.getContext("2d");
+
+      const HOURS_PER_DAY = 24;
+      const DEFAULT_HALF_LIFE = 6;
+      let rafId = null;
+
+      function scheduleDraw() {
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          drawChart();
+        });
+      }
+
+      function getHalfLifeHours() {
+        const rawValue = parseFloat(halfLifeInput.value);
+        const safeValue = Number.isFinite(rawValue) && rawValue > 0 ? rawValue : DEFAULT_HALF_LIFE;
+        if (!Number.isFinite(rawValue) || rawValue <= 0) {
+          halfLifeInput.value = String(DEFAULT_HALF_LIFE);
+        }
+        return halfLifeUnit.value === "hours" ? safeValue : safeValue * HOURS_PER_DAY;
+      }
+
+      function getDoses() {
+        return dayInputs.map((input) => {
+          const value = parseFloat(input.value);
+          return Number.isFinite(value) && value > 0 ? value : 0;
+        });
+      }
+
+      function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = chart.getBoundingClientRect();
+        const width = Math.max(1, rect.width);
+        const height = Math.max(1, rect.height);
+        chart.width = Math.round(width * dpr);
+        chart.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { width, height };
+      }
+
+      function getThemeColors() {
+        const styles = getComputedStyle(document.documentElement);
+        return {
+          surface: styles.getPropertyValue("--surface").trim() || "#ffffff",
+          border: styles.getPropertyValue("--border").trim() || "#d8dee9",
+          primary: styles.getPropertyValue("--primary").trim() || "#2563eb",
+          muted: styles.getPropertyValue("--muted").trim() || "#475569"
+        };
+      }
+
+      function computePoints(halfLifeHours, doses) {
+        const totalDays = doses.length;
+        const totalHours = totalDays * HOURS_PER_DAY;
+        const stepHours = 1;
+        const points = [];
+
+        for (let hour = 0; hour <= totalHours; hour += stepHours) {
+          let level = 0;
+          for (let day = 0; day < totalDays; day++) {
+            const dose = doses[day];
+            if (dose <= 0) continue;
+            const doseHour = day * HOURS_PER_DAY;
+            if (hour >= doseHour) {
+              level += dose * Math.pow(0.5, (hour - doseHour) / halfLifeHours);
+            }
+          }
+          points.push({ hour, level });
+        }
+
+        return { points, totalHours };
+      }
+
+      function drawChart() {
+        if (!chart) return;
+        const { width, height } = resizeCanvas();
+        const colors = getThemeColors();
+        const padding = { top: 16, right: 16, bottom: 24, left: 36 };
+        const plotWidth = Math.max(1, width - padding.left - padding.right);
+        const plotHeight = Math.max(1, height - padding.top - padding.bottom);
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = colors.surface;
+        ctx.fillRect(0, 0, width, height);
+
+        const halfLifeHours = getHalfLifeHours();
+        const doses = getDoses();
+        const totalDays = doses.length;
+        const { points, totalHours } = computePoints(halfLifeHours, doses);
+        const maxLevel = points.reduce((max, point) => Math.max(max, point.level), 0);
+        const safeMax = maxLevel > 0 ? maxLevel : 1;
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = colors.border;
+        ctx.globalAlpha = 0.35;
+
+        for (let i = 0; i <= 4; i++) {
+          const y = padding.top + (plotHeight * i) / 4;
+          ctx.beginPath();
+          ctx.moveTo(padding.left, y);
+          ctx.lineTo(padding.left + plotWidth, y);
+          ctx.stroke();
+        }
+
+        for (let day = 0; day <= totalDays; day++) {
+          const x = padding.left + (plotWidth * day) / totalDays;
+          ctx.beginPath();
+          ctx.moveTo(x, padding.top);
+          ctx.lineTo(x, padding.top + plotHeight);
+          ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1;
+
+        if (maxLevel === 0) {
+          ctx.fillStyle = colors.muted;
+          ctx.font =
+            "13px system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("Enter a dose to see the curve", width / 2, height / 2);
+          return;
+        }
+
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          const x = padding.left + (point.hour / totalHours) * plotWidth;
+          const y = padding.top + plotHeight - (point.level / safeMax) * plotHeight;
+          if (index === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        ctx.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+        ctx.lineTo(padding.left, padding.top + plotHeight);
+        ctx.closePath();
+        ctx.fillStyle = colors.primary;
+        ctx.globalAlpha = 0.15;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          const x = padding.left + (point.hour / totalHours) * plotWidth;
+          const y = padding.top + plotHeight - (point.level / safeMax) * plotHeight;
+          if (index === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        ctx.strokeStyle = colors.primary;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      const controls = [...dayInputs, halfLifeInput, halfLifeUnit];
+      controls.forEach((control) => control.addEventListener("input", scheduleDraw));
+      halfLifeUnit.addEventListener("change", scheduleDraw);
+      window.addEventListener("resize", scheduleDraw);
+
+      if (window.matchMedia) {
+        const schemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        if (schemeQuery.addEventListener) {
+          schemeQuery.addEventListener("change", scheduleDraw);
+        } else if (schemeQuery.addListener) {
+          schemeQuery.addListener(scheduleDraw);
+        }
+      }
+
+      scheduleDraw();
+    </script>
+  </body>
+</html>

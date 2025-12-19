@@ -267,6 +267,13 @@ code {
   flex: 1 1 180px;
 }
 
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .field__label {
   color: var(--muted);
   font-size: 0.92rem;
@@ -349,6 +356,60 @@ code {
   display: grid;
   gap: 10px;
   min-height: 64px;
+}
+
+.chart-area {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 240px;
+  display: block;
+}
+
+.table-section {
+  margin-top: 20px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.dose-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.dose-table th,
+.dose-table td {
+  border: 1px solid var(--border);
+  padding: 10px;
+  text-align: center;
+}
+
+.dose-table th {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.table-caption {
+  text-align: left;
+  padding: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.dose-input {
+  width: 100%;
+  text-align: center;
 }
 
 .password {
