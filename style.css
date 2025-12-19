@@ -289,6 +289,10 @@ code {
   font-size: 0.92rem;
 }
 
+.field.is-disabled .field__label {
+  color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
 .input {
   width: 100%;
   padding: 10px 12px;
@@ -297,6 +301,13 @@ code {
   background: var(--surface-2);
   color: var(--text);
   font: inherit;
+}
+
+.input:disabled {
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: color-mix(in srgb, var(--text) 45%, transparent);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .input--sm {
