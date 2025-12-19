@@ -19,7 +19,7 @@
     </header>
 
     <main class="container">
-      <div class="split">
+      <div class="split split--qr" id="qrLayout">
         <section class="card">
           <div class="card__header">
             <h2 class="card__title">Input</h2>
@@ -77,6 +77,9 @@
                 <label class="field__label" for="qrMargin">Margin</label>
                 <input class="input input--sm" type="number" id="qrMargin" min="0" max="10" value="4" title="Quiet zone size in modules around the code." />
               </div>
+            </div>
+
+            <div class="field-row">
               <div class="field">
                 <label class="field__label" for="qrStyle">Style</label>
                 <select class="input input--sm" id="qrStyle" title="Rendering style for QR modules.">
@@ -88,6 +91,13 @@
                   <option value="vertical-bars">Vertical bars</option>
                   <option value="horizontal-bars">Horizontal bars</option>
                   <option value="diamond">Diamond</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="qrPositionStyle">Position patterns</label>
+                <select class="input input--sm" id="qrPositionStyle" title="Style for the three finder patterns.">
+                  <option value="square" selected>Square</option>
+                  <option value="rounded">Rounded</option>
                 </select>
               </div>
             </div>
@@ -103,8 +113,12 @@
               </div>
             </div>
 
-            <div class="actions">
-              <button class="btn btn--primary" type="button" id="qrGenerate">Generate</button>
+            <div class="field">
+              <label class="field__label" for="qrTransparent">Background transparency</label>
+              <label class="control-row" title="When enabled, the QR background is transparent for exports.">
+                <input type="checkbox" id="qrTransparent" />
+                Transparent background
+              </label>
             </div>
 
             <div class="status-text" id="qrStatus">Ready to generate.</div>
@@ -119,6 +133,11 @@
 
           <div class="qr-preview">
             <canvas id="qrCanvas" class="qr-canvas" width="320" height="320"></canvas>
+          </div>
+
+          <div class="actions qr-actions">
+            <button class="btn btn--primary" type="button" id="qrSavePng" title="Save a PNG image of the QR code.">Save</button>
+            <button class="btn" type="button" id="qrSaveSvg" title="Save an SVG vector version of the QR code.">Save SVG</button>
           </div>
         </section>
       </div>

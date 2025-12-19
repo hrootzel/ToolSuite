@@ -9,7 +9,8 @@
     margin: 4,
     foreground: "#000000",
     background: "#ffffff",
-    style: "square"
+    style: "square",
+    positionStyle: "square"
   };
 
   const ECC_LEVELS = {
@@ -948,8 +949,66 @@
     return { modules, version: actualVersion, maskPattern };
   }
 
+  function getPositionPatterns(size) {
+    const finderSize = 7;
+    const isFinderModule = (row, col) => {
+      const inTopLeft = row < finderSize && col < finderSize;
+      const inTopRight = row < finderSize && col >= size - finderSize;
+      const inBottomLeft = row >= size - finderSize && col < finderSize;
+      return inTopLeft || inTopRight || inBottomLeft;
+    };
+    const version = Math.round((size - 17) / 4);
+    const alignmentCenters = PATTERN_POSITION_TABLE[version - 1] || [];
+    const alignmentSquares = [];
+    for (let i = 0; i < alignmentCenters.length; i++) {
+      for (let j = 0; j < alignmentCenters.length; j++) {
+        const centerRow = alignmentCenters[i];
+        const centerCol = alignmentCenters[j];
+        if (
+          (centerRow <= 6 && centerCol <= 6) ||
+          (centerRow <= 6 && centerCol >= size - finderSize) ||
+          (centerRow >= size - finderSize && centerCol <= 6)
+        ) {
+          continue;
+        }
+        alignmentSquares.push({
+          r0: centerRow - 2,
+          r1: centerRow + 2,
+          c0: centerCol - 2,
+          c1: centerCol + 2
+        });
+      }
+    }
+    const isAlignmentModule = (row, col) =>
+      alignmentSquares.some((square) => row >= square.r0 && row <= square.r1 && col >= square.c0 && col <= square.c1);
+    const isPositionPatternCell = (row, col) => isFinderModule(row, col) || isAlignmentModule(row, col);
+    return { isFinderModule, isAlignmentModule, isPositionPatternCell };
+  }
+
+  function getRoundedNeighbors(modules, row, col, isPositionModule, isPositionPatternCell) {
+    const size = modules.length;
+    const neighborAllowed = (r, c) => {
+      if (r < 0 || r >= size || c < 0 || c >= size) {
+        return false;
+      }
+      if (!modules[r][c]) {
+        return false;
+      }
+      if (isPositionModule) {
+        return isPositionPatternCell(r, c);
+      }
+      return true;
+    };
+    return {
+      up: neighborAllowed(row - 1, col),
+      right: neighborAllowed(row, col + 1),
+      down: neighborAllowed(row + 1, col),
+      left: neighborAllowed(row, col - 1)
+    };
+  }
+
   // Render matrix to a canvas with configurable module style.
-  function renderQr(canvas, modules, scale, margin, foreground, background, style) {
+  function renderQr(canvas, modules, scale, margin, foreground, background, style, positionStyle) {
     const size = modules.length;
     const dpr = window.devicePixelRatio || 1;
     const canvasSize = (size + margin * 2) * scale;
@@ -960,25 +1019,27 @@
     const ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = background;
-    ctx.fillRect(0, 0, canvasSize, canvasSize);
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
+    if (background !== "transparent") {
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, canvasSize, canvasSize);
+    }
     ctx.fillStyle = foreground;
-    const useRounded = style === "rounded";
+    const positionPatternStyle = positionStyle || style;
+    const { isPositionPatternCell } = getPositionPatterns(size);
     for (let row = 0; row < size; row++) {
       for (let col = 0; col < size; col++) {
         if (modules[row][col]) {
-          const neighbors = useRounded
-            ? {
-                up: row > 0 && modules[row - 1][col],
-                right: col < size - 1 && modules[row][col + 1],
-                down: row < size - 1 && modules[row + 1][col],
-                left: col > 0 && modules[row][col - 1]
-              }
+          const isPositionModule = isPositionPatternCell(row, col);
+          const cellStyle = isPositionModule ? positionPatternStyle : style;
+          const neighbors = cellStyle === "rounded"
+            ? getRoundedNeighbors(modules, row, col, isPositionModule, isPositionPatternCell)
             : null;
-          drawModule(ctx, (col + margin) * scale, (row + margin) * scale, scale, style, neighbors);
+          drawModule(ctx, (col + margin) * scale, (row + margin) * scale, scale, cellStyle, neighbors);
         }
       }
     }
+    return canvasSize;
   }
 
   function drawModule(ctx, x, y, size, style, neighbors) {
@@ -1078,6 +1139,128 @@
     ctx.fill();
   }
 
+  function formatNumber(value) {
+    const rounded = Number(value.toFixed(2));
+    return (Object.is(rounded, -0) ? 0 : rounded).toString();
+  }
+
+  function buildRoundedPath(x, y, size, edges) {
+    const radius = Math.max(1, size * 0.55);
+    const roundTopLeft = !edges.up && !edges.left;
+    const roundTopRight = !edges.up && !edges.right;
+    const roundBottomRight = !edges.down && !edges.right;
+    const roundBottomLeft = !edges.down && !edges.left;
+    const fmt = formatNumber;
+
+    const commands = [
+      `M ${fmt(x + (roundTopLeft ? radius : 0))} ${fmt(y)}`,
+      `L ${fmt(x + size - (roundTopRight ? radius : 0))} ${fmt(y)}`,
+      roundTopRight
+        ? `Q ${fmt(x + size)} ${fmt(y)} ${fmt(x + size)} ${fmt(y + radius)}`
+        : `L ${fmt(x + size)} ${fmt(y)}`,
+      `L ${fmt(x + size)} ${fmt(y + size - (roundBottomRight ? radius : 0))}`,
+      roundBottomRight
+        ? `Q ${fmt(x + size)} ${fmt(y + size)} ${fmt(x + size - radius)} ${fmt(y + size)}`
+        : `L ${fmt(x + size)} ${fmt(y + size)}`,
+      `L ${fmt(x + (roundBottomLeft ? radius : 0))} ${fmt(y + size)}`,
+      roundBottomLeft
+        ? `Q ${fmt(x)} ${fmt(y + size)} ${fmt(x)} ${fmt(y + size - radius)}`
+        : `L ${fmt(x)} ${fmt(y + size)}`,
+      `L ${fmt(x)} ${fmt(y + (roundTopLeft ? radius : 0))}`,
+      roundTopLeft
+        ? `Q ${fmt(x)} ${fmt(y)} ${fmt(x + radius)} ${fmt(y)}`
+        : `L ${fmt(x)} ${fmt(y)}`,
+      "Z"
+    ];
+    return commands.join(" ");
+  }
+
+  function moduleToSvg(x, y, size, style, neighbors) {
+    const fmt = formatNumber;
+
+    if (style === "vertical-bars") {
+      const barWidth = Math.max(1, Math.round(size * 0.7));
+      const offset = (size - barWidth) / 2;
+      return `<rect x="${fmt(x + offset)}" y="${fmt(y)}" width="${fmt(barWidth)}" height="${fmt(size)}"/>`;
+    }
+
+    if (style === "horizontal-bars") {
+      const barHeight = Math.max(1, Math.round(size * 0.7));
+      const offset = (size - barHeight) / 2;
+      return `<rect x="${fmt(x)}" y="${fmt(y + offset)}" width="${fmt(size)}" height="${fmt(barHeight)}"/>`;
+    }
+
+    if (style === "gapped-square") {
+      const inner = Math.max(1, Math.round(size * 0.7));
+      const offset = (size - inner) / 2;
+      return `<rect x="${fmt(x + offset)}" y="${fmt(y + offset)}" width="${fmt(inner)}" height="${fmt(inner)}"/>`;
+    }
+
+    if (style === "circle" || style === "gapped-circle") {
+      const scale = style === "gapped-circle" ? 0.7 : 1;
+      const diameter = Math.max(1, Math.round(size * scale));
+      const radius = diameter / 2;
+      const offset = (size - diameter) / 2;
+      return `<circle cx="${fmt(x + offset + radius)}" cy="${fmt(y + offset + radius)}" r="${fmt(radius)}"/>`;
+    }
+
+    if (style === "rounded") {
+      const edgeInfo = neighbors || { up: false, right: false, down: false, left: false };
+      return `<path d="${buildRoundedPath(x, y, size, edgeInfo)}"/>`;
+    }
+
+    if (style === "diamond") {
+      const d = `M ${fmt(x + size / 2)} ${fmt(y)} L ${fmt(x + size)} ${fmt(y + size / 2)} L ${fmt(
+        x + size / 2
+      )} ${fmt(y + size)} L ${fmt(x)} ${fmt(y + size / 2)} Z`;
+      return `<path d="${d}"/>`;
+    }
+
+    return `<rect x="${fmt(x)}" y="${fmt(y)}" width="${fmt(size)}" height="${fmt(size)}"/>`;
+  }
+
+  function buildSvg(modules, scale, margin, foreground, background, style, positionStyle) {
+    const size = modules.length;
+    const totalSize = (size + margin * 2) * scale;
+    const positionPatternStyle = positionStyle || style;
+    const { isPositionPatternCell } = getPositionPatterns(size);
+    const parts = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${totalSize}" height="${totalSize}" viewBox="0 0 ${totalSize} ${totalSize}" shape-rendering="crispEdges">`
+    ];
+    if (background !== "transparent") {
+      parts.push(`<rect width="100%" height="100%" fill="${background}"/>`);
+    }
+    parts.push(`<g fill="${foreground}">`);
+
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
+        if (modules[row][col]) {
+          const isPositionModule = isPositionPatternCell(row, col);
+          const cellStyle = isPositionModule ? positionPatternStyle : style;
+          const neighbors = cellStyle === "rounded"
+            ? getRoundedNeighbors(modules, row, col, isPositionModule, isPositionPatternCell)
+            : null;
+          const x = (col + margin) * scale;
+          const y = (row + margin) * scale;
+          parts.push(moduleToSvg(x, y, scale, cellStyle, neighbors));
+        }
+      }
+    }
+
+    parts.push("</g></svg>");
+    return parts.join("");
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+  }
+
   // Wire up UI and generate previews.
   function init() {
     initGaloisTables();
@@ -1090,11 +1273,19 @@
     const marginInput = document.getElementById("qrMargin");
     const foregroundInput = document.getElementById("qrForeground");
     const backgroundInput = document.getElementById("qrBackground");
+    const transparentInput = document.getElementById("qrTransparent");
     const styleSelect = document.getElementById("qrStyle");
-    const generateButton = document.getElementById("qrGenerate");
+    const positionStyleSelect = document.getElementById("qrPositionStyle");
+    const savePngButton = document.getElementById("qrSavePng");
+    const saveSvgButton = document.getElementById("qrSaveSvg");
     const canvas = document.getElementById("qrCanvas");
     const status = document.getElementById("qrStatus");
     const encoder = new TextEncoder();
+    const layout = document.getElementById("qrLayout");
+    const previewWrap = document.querySelector(".qr-preview");
+    const previewCard = previewWrap ? previewWrap.closest(".card") : null;
+    let lastCanvasSize = 0;
+    let lastRender = null;
 
     if (
       !textInput ||
@@ -1105,7 +1296,9 @@
       !marginInput ||
       !foregroundInput ||
       !backgroundInput ||
+      !transparentInput ||
       !styleSelect ||
+      !positionStyleSelect ||
       !canvas
     ) {
       return;
@@ -1131,7 +1324,17 @@
     foregroundInput.value = QR_DEFAULTS.foreground;
     backgroundInput.value = QR_DEFAULTS.background;
     styleSelect.value = QR_DEFAULTS.style;
+    positionStyleSelect.value = QR_DEFAULTS.positionStyle;
     textInput.value = "ToolSuite";
+
+    function updateTransparencyState() {
+      const isTransparent = transparentInput.checked;
+      backgroundInput.disabled = isTransparent;
+      const backgroundField = backgroundInput.closest(".field");
+      if (backgroundField) {
+        backgroundField.classList.toggle("is-disabled", isTransparent);
+      }
+    }
 
     function updateStatus(message, isError) {
       if (!status) return;
@@ -1144,10 +1347,35 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
+    function updateLayout(canvasSize) {
+      if (!layout || !canvasSize) {
+        return;
+      }
+      lastCanvasSize = canvasSize;
+      if (!window.matchMedia("(min-width: 920px)").matches) {
+        layout.classList.remove("split--stacked");
+        return;
+      }
+      const styles = window.getComputedStyle(layout);
+      const gapValue = styles.columnGap || styles.gap;
+      const gap = parseFloat(gapValue) || 16;
+      const ratioValue = styles.getPropertyValue("--split-right-ratio");
+      const rightRatio = parseFloat(ratioValue) || 0.425;
+      const cardPadding = previewCard
+        ? parseFloat(window.getComputedStyle(previewCard).paddingLeft) * 2
+        : 32;
+      const previewPadding = previewWrap
+        ? parseFloat(window.getComputedStyle(previewWrap).paddingLeft) * 2
+        : 24;
+      const availableWidth = (layout.clientWidth - gap) * rightRatio - cardPadding - previewPadding;
+      layout.classList.toggle("split--stacked", canvasSize > availableWidth);
+    }
+
     function generate() {
       const text = textInput.value;
       if (!text.length) {
         clearCanvas();
+        lastRender = null;
         updateStatus("Enter text or a URL to generate a QR code.", false);
         return;
       }
@@ -1158,18 +1386,77 @@
       const scale = Math.max(2, Math.min(20, parseInt(scaleInput.value, 10) || QR_DEFAULTS.scale));
       const margin = Math.max(0, Math.min(10, parseInt(marginInput.value, 10) || QR_DEFAULTS.margin));
       const foreground = foregroundInput.value || QR_DEFAULTS.foreground;
-      const background = backgroundInput.value || QR_DEFAULTS.background;
+      const background = transparentInput.checked ? "transparent" : backgroundInput.value || QR_DEFAULTS.background;
       const style = styleSelect.value || QR_DEFAULTS.style;
+      const positionStyle = positionStyleSelect.value || QR_DEFAULTS.positionStyle;
       scaleInput.value = String(scale);
       marginInput.value = String(margin);
       try {
         const qr = makeQr(dataBytes, eccLevel, versionValue, maskValue);
-        renderQr(canvas, qr.modules, scale, margin, foreground, background, style);
+        lastRender = {
+          modules: qr.modules,
+          scale,
+          margin,
+          foreground,
+          background,
+          style,
+          positionStyle
+        };
+        const canvasSize = renderQr(
+          canvas,
+          qr.modules,
+          scale,
+          margin,
+          foreground,
+          background,
+          style,
+          positionStyle
+        );
+        updateLayout(canvasSize);
         updateStatus(`Version ${qr.version} | Mask ${qr.maskPattern} | ${dataBytes.length} bytes`, false);
       } catch (error) {
         clearCanvas();
+        lastRender = null;
         updateStatus(error.message || "Unable to generate QR code.", true);
       }
+    }
+
+    function savePng() {
+      generate();
+      if (!lastRender) {
+        return;
+      }
+      if (canvas.toBlob) {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            downloadBlob(blob, "qr-code.png");
+          }
+        }, "image/png");
+      } else {
+        const dataUrl = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = "qr-code.png";
+        link.click();
+      }
+    }
+
+    function saveSvg() {
+      generate();
+      if (!lastRender) {
+        return;
+      }
+      const svg = buildSvg(
+        lastRender.modules,
+        lastRender.scale,
+        lastRender.margin,
+        lastRender.foreground,
+        lastRender.background,
+        lastRender.style,
+        lastRender.positionStyle
+      );
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      downloadBlob(blob, "qr-code.svg");
     }
 
     function scheduleGenerate() {
@@ -1184,7 +1471,6 @@
       });
     }
 
-    generateButton?.addEventListener("click", generate);
     textInput.addEventListener("input", scheduleGenerate);
     versionSelect.addEventListener("change", generate);
     eccSelect.addEventListener("change", generate);
@@ -1193,8 +1479,17 @@
     marginInput.addEventListener("input", generate);
     foregroundInput.addEventListener("input", generate);
     backgroundInput.addEventListener("input", generate);
+    transparentInput.addEventListener("change", () => {
+      updateTransparencyState();
+      generate();
+    });
     styleSelect.addEventListener("change", generate);
+    positionStyleSelect.addEventListener("change", generate);
+    savePngButton?.addEventListener("click", savePng);
+    saveSvgButton?.addEventListener("click", saveSvg);
+    window.addEventListener("resize", () => updateLayout(lastCanvasSize));
 
+    updateTransparencyState();
     generate();
   }
 
