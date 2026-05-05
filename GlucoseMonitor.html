@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Glucose Monitor - ToolSuite</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header site-header--compact">
+      <div class="container header-row">
+        <a class="btn btn--ghost" href="index.html">Back</a>
+        <div>
+          <h1 class="site-header__title">Glucose Monitor</h1>
+          <p class="site-header__subtitle">Log blood glucose readings locally and review trends over time.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <div class="card__header chart-header">
+          <div class="chart-header__left">
+            <h2 class="card__title">Glucose history</h2>
+            <p class="card__subtitle">Readings are stored in this browser.</p>
+
+            <form class="form monitor-form" id="readingForm">
+              <div class="field-row">
+                <div class="field">
+                  <label class="field__label" for="readingValue">Glucose</label>
+                  <div class="control-row">
+                    <input
+                      class="input input--sm"
+                      id="readingValue"
+                      type="number"
+                      min="20"
+                      max="600"
+                      step="1"
+                      inputmode="decimal"
+                      required
+                    />
+                    <span class="unit-label">mg/dL</span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="readingTime">Date and time</label>
+                  <input class="input" id="readingTime" type="datetime-local" required />
+                </div>
+                <div class="field">
+                  <label class="field__label" for="readingContext">Context</label>
+                  <select class="input" id="readingContext">
+                    <option value="unspecified">Unspecified</option>
+                    <option value="fasting">Fasting</option>
+                    <option value="before-meal">Before meal</option>
+                    <option value="after-meal">After meal</option>
+                    <option value="bedtime">Bedtime</option>
+                    <option value="exercise">Exercise</option>
+                    <option value="correction">Correction</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <label class="field__label" for="readingNotes">Notes</label>
+                <input class="input" id="readingNotes" type="text" maxlength="160" />
+              </div>
+              <div class="actions monitor-actions">
+                <button class="btn btn--primary" id="saveReadingButton" type="submit">Save reading</button>
+                <button class="btn" id="setNowButton" type="button">Use current time</button>
+                <button class="btn btn--ghost" id="cancelEditButton" type="button" hidden>Cancel edit</button>
+              </div>
+            </form>
+
+          </div>
+
+          <aside class="stats-panel stats-panel--header">
+            <h3 class="stats-title">Chart readout</h3>
+            <p class="stats-subtitle">Click a chart marker to pin a reading.</p>
+            <div class="stats-selected" id="selectedValue">No reading selected.</div>
+            <div class="stats-list">
+              <div class="stats-row">
+                <span>Readings</span>
+                <span class="stats-value" id="statCount">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Average</span>
+                <span class="stats-value" id="statAvg">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Min</span>
+                <span class="stats-value" id="statMin">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Max</span>
+                <span class="stats-value" id="statMax">--</span>
+              </div>
+              <div class="stats-row">
+                <span>In range</span>
+                <span class="stats-value" id="statRange">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Latest</span>
+                <span class="stats-value" id="statLatest">--</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="range-controls" aria-label="Chart time scale">
+          <button class="range-button" type="button" data-range="1d">24h</button>
+          <button class="range-button" type="button" data-range="3d">3 days</button>
+          <button class="range-button" type="button" data-range="7d">7 days</button>
+          <button class="range-button" type="button" data-range="14d">14 days</button>
+          <button class="range-button" type="button" data-range="30d">30 days</button>
+          <button class="range-button" type="button" data-range="90d">90 days</button>
+          <button class="range-button" type="button" data-range="all">All</button>
+        </div>
+
+        <div class="chart-area">
+          <canvas id="glucoseChart" class="chart-canvas" role="img" aria-label="Glucose readings over time"></canvas>
+          <div id="chartTooltip" class="chart-tooltip" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="table-section">
+          <div class="section__header table-header-row">
+            <div>
+              <h3 class="section__title">Reading history</h3>
+              <p class="section__subtitle">Most recent readings are shown first. Import and export CSV backups here.</p>
+            </div>
+            <div class="history-toolbar">
+              <button class="btn btn--sm" id="exportButton" type="button">Export CSV</button>
+              <button class="btn btn--sm" id="importButton" type="button">Import CSV</button>
+              <input class="visually-hidden" id="csvInput" type="file" accept=".csv,text/csv" />
+              <button class="btn btn--ghost btn--sm" id="clearAllButton" type="button">Clear all</button>
+            </div>
+          </div>
+          <p class="status-text history-status" id="statusText" role="status" aria-live="polite"></p>
+          <div class="table-wrapper">
+            <table class="history-table" id="historyTable">
+              <caption class="table-caption">
+                CSV columns: timestamp, glucose_mg_dl, context, notes.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Date and time</th>
+                  <th scope="col">Level</th>
+                  <th scope="col">Context</th>
+                  <th scope="col">Notes</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p class="footer__text">For tracking only; not medical advice. Follow your clinician's guidance for treatment decisions.</p>
+      </footer>
+    </main>
+
+    <script>
+      const STORAGE_KEY = "toolsuite.glucoseMonitor.entries.v1";
+      const RANGE_KEY = "toolsuite.glucoseMonitor.range.v1";
+      const TARGET_LOW = 70;
+      const TARGET_HIGH = 180;
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      const RANGE_DAYS = {
+        "1d": 1,
+        "3d": 3,
+        "7d": 7,
+        "14d": 14,
+        "30d": 30,
+        "90d": 90
+      };
+      const CONTEXT_LABELS = {
+        unspecified: "Unspecified",
+        fasting: "Fasting",
+        "before-meal": "Before meal",
+        "after-meal": "After meal",
+        bedtime: "Bedtime",
+        exercise: "Exercise",
+        correction: "Correction"
+      };
+
+      const readingForm = document.getElementById("readingForm");
+      const readingValue = document.getElementById("readingValue");
+      const readingTime = document.getElementById("readingTime");
+      const readingContext = document.getElementById("readingContext");
+      const readingNotes = document.getElementById("readingNotes");
+      const saveReadingButton = document.getElementById("saveReadingButton");
+      const setNowButton = document.getElementById("setNowButton");
+      const cancelEditButton = document.getElementById("cancelEditButton");
+      const exportButton = document.getElementById("exportButton");
+      const importButton = document.getElementById("importButton");
+      const csvInput = document.getElementById("csvInput");
+      const statusText = document.getElementById("statusText");
+      const clearAllButton = document.getElementById("clearAllButton");
+      const historyTableBody = document.querySelector("#historyTable tbody");
+      const rangeButtons = Array.from(document.querySelectorAll(".range-button"));
+      const chart = document.getElementById("glucoseChart");
+      const chartArea = chart.closest(".chart-area");
+      const tooltip = document.getElementById("chartTooltip");
+      const ctx = chart.getContext("2d");
+      const selectedValue = document.getElementById("selectedValue");
+      const statCount = document.getElementById("statCount");
+      const statAvg = document.getElementById("statAvg");
+      const statMin = document.getElementById("statMin");
+      const statMax = document.getElementById("statMax");
+      const statRange = document.getElementById("statRange");
+      const statLatest = document.getElementById("statLatest");
+
+      const chartState = {
+        visibleEntries: [],
+        selectedId: null,
+        bounds: null,
+        padding: null,
+        plotWidth: 0,
+        plotHeight: 0
+      };
+
+      let entries = [];
+      let activeRange = localStorage.getItem(RANGE_KEY) || "7d";
+      let editingId = null;
+      let rafId = null;
+
+      function setStatus(message, isError = false) {
+        statusText.textContent = message;
+        statusText.classList.toggle("status-text--error", Boolean(isError));
+      }
+
+      function toLocalInputValue(date) {
+        const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        return local.toISOString().slice(0, 16);
+      }
+
+      function setTimeToNow() {
+        readingTime.value = toLocalInputValue(new Date());
+      }
+
+      function parseInputDate(value) {
+        if (!value) return null;
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+
+      function formatDateTime(value) {
+        return new Intl.DateTimeFormat(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit"
+        }).format(new Date(value));
+      }
+
+      function formatShortDate(value) {
+        return new Intl.DateTimeFormat(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit"
+        }).format(new Date(value));
+      }
+
+      function formatAxisDate(value) {
+        const date = new Date(value);
+        const options =
+          activeRange === "1d"
+            ? { hour: "numeric", minute: "2-digit" }
+            : { month: "short", day: "numeric" };
+        return new Intl.DateTimeFormat(undefined, options).format(date);
+      }
+
+      function formatLevel(value) {
+        return `${Math.round(value)} mg/dL`;
+      }
+
+      function getContextLabel(value) {
+        return CONTEXT_LABELS[value] || value || "Unspecified";
+      }
+
+      function makeId() {
+        if (window.crypto && window.crypto.randomUUID) {
+          return window.crypto.randomUUID();
+        }
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      }
+
+      function normalizeEntry(entry) {
+        const value = Number(entry.value);
+        const date = new Date(entry.timestamp);
+        if (!Number.isFinite(value) || Number.isNaN(date.getTime())) {
+          return null;
+        }
+        return {
+          id: entry.id || makeId(),
+          timestamp: date.toISOString(),
+          value,
+          context: entry.context || "unspecified",
+          notes: entry.notes || ""
+        };
+      }
+
+      function sortEntries() {
+        entries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      }
+
+      function loadEntries() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          const parsed = raw ? JSON.parse(raw) : [];
+          entries = Array.isArray(parsed) ? parsed.map(normalizeEntry).filter(Boolean) : [];
+          sortEntries();
+        } catch (error) {
+          entries = [];
+          setStatus("Stored readings could not be loaded.", true);
+        }
+      }
+
+      function saveEntries() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      }
+
+      function getVisibleEntries() {
+        if (activeRange === "all") {
+          return entries.slice();
+        }
+        const days = RANGE_DAYS[activeRange] || RANGE_DAYS["7d"];
+        const end = Date.now();
+        const start = end - days * DAY_MS;
+        return entries.filter((entry) => {
+          const time = new Date(entry.timestamp).getTime();
+          return time >= start && time <= end;
+        });
+      }
+
+      function computeStats(visibleEntries) {
+        if (!visibleEntries.length) {
+          return null;
+        }
+        const values = visibleEntries.map((entry) => entry.value);
+        const sum = values.reduce((total, value) => total + value, 0);
+        const inRange = values.filter((value) => value >= TARGET_LOW && value <= TARGET_HIGH).length;
+        return {
+          count: visibleEntries.length,
+          avg: sum / values.length,
+          min: Math.min(...values),
+          max: Math.max(...values),
+          inRange,
+          latest: visibleEntries[visibleEntries.length - 1]
+        };
+      }
+
+      function updateStats(visibleEntries) {
+        const stats = computeStats(visibleEntries);
+        if (!stats) {
+          statCount.textContent = "--";
+          statAvg.textContent = "--";
+          statMin.textContent = "--";
+          statMax.textContent = "--";
+          statRange.textContent = "--";
+          statLatest.textContent = "--";
+          selectedValue.textContent = "No readings in this range.";
+          return;
+        }
+        statCount.textContent = String(stats.count);
+        statAvg.textContent = formatLevel(stats.avg);
+        statMin.textContent = formatLevel(stats.min);
+        statMax.textContent = formatLevel(stats.max);
+        statRange.textContent = `${Math.round((stats.inRange / stats.count) * 100)}%`;
+        statLatest.textContent = formatLevel(stats.latest.value);
+
+        const selected = entries.find((entry) => entry.id === chartState.selectedId);
+        selectedValue.textContent = selected
+          ? `${formatLevel(selected.value)} on ${formatShortDate(selected.timestamp)}`
+          : "Click a chart marker to pin a reading.";
+      }
+
+      function updateRangeButtons() {
+        rangeButtons.forEach((button) => {
+          const isActive = button.dataset.range === activeRange;
+          button.classList.toggle("is-active", isActive);
+          button.setAttribute("aria-pressed", String(isActive));
+        });
+      }
+
+      function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = chart.getBoundingClientRect();
+        const width = Math.max(1, rect.width);
+        const height = Math.max(1, rect.height);
+        chart.width = Math.round(width * dpr);
+        chart.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { width, height };
+      }
+
+      function getThemeColors() {
+        const styles = getComputedStyle(document.documentElement);
+        const isDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        return {
+          surface: styles.getPropertyValue("--surface").trim() || "#ffffff",
+          surface2: styles.getPropertyValue("--surface-2").trim() || "#f1f5f9",
+          border: styles.getPropertyValue("--border").trim() || "#d8dee9",
+          primary: styles.getPropertyValue("--primary").trim() || "#2563eb",
+          text: styles.getPropertyValue("--text").trim() || "#0f172a",
+          muted: styles.getPropertyValue("--muted").trim() || "#475569",
+          rangeFill: isDark ? "rgba(34, 197, 94, 0.12)" : "rgba(22, 163, 74, 0.12)",
+          rangeStroke: isDark ? "rgba(74, 222, 128, 0.8)" : "rgba(22, 163, 74, 0.75)",
+          high: isDark ? "#f87171" : "#dc2626",
+          low: isDark ? "#facc15" : "#ca8a04"
+        };
+      }
+
+      function getChartBounds(visibleEntries) {
+        const times = visibleEntries.map((entry) => new Date(entry.timestamp).getTime());
+        let minTime;
+        let maxTime;
+        if (activeRange === "all") {
+          minTime = times.length ? Math.min(...times) : Date.now() - 7 * DAY_MS;
+          maxTime = times.length ? Math.max(...times) : Date.now();
+          if (minTime === maxTime) {
+            minTime -= 12 * 60 * 60 * 1000;
+            maxTime += 12 * 60 * 60 * 1000;
+          }
+        } else {
+          const days = RANGE_DAYS[activeRange] || RANGE_DAYS["7d"];
+          maxTime = Date.now();
+          minTime = maxTime - days * DAY_MS;
+        }
+
+        const values = visibleEntries.map((entry) => entry.value);
+        const rawMin = values.length ? Math.min(...values, TARGET_LOW) : TARGET_LOW;
+        const rawMax = values.length ? Math.max(...values, TARGET_HIGH) : TARGET_HIGH;
+        const pad = Math.max(10, (rawMax - rawMin) * 0.12);
+        const minValue = Math.max(0, rawMin - pad);
+        const maxValue = rawMax + pad;
+        return { minTime, maxTime, minValue, maxValue };
+      }
+
+      function hideTooltip() {
+        tooltip.classList.remove("is-visible");
+      }
+
+      function positionTooltip(x, y, label) {
+        tooltip.textContent = label;
+        const areaWidth = chartArea.clientWidth;
+        const areaHeight = chartArea.clientHeight;
+        const tooltipWidth = tooltip.offsetWidth;
+        const tooltipHeight = tooltip.offsetHeight;
+        const minLeft = tooltipWidth / 2 + 8;
+        const maxLeft = areaWidth - tooltipWidth / 2 - 8;
+        const minTop = tooltipHeight + 12;
+        let left = Math.min(Math.max(x, minLeft), maxLeft);
+        let top = Math.max(y, minTop);
+        top = Math.min(top, areaHeight - 8);
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+        tooltip.classList.add("is-visible");
+      }
+
+      function drawAxisLabels(width, height, padding, plotWidth, plotHeight, bounds, colors) {
+        ctx.save();
+        ctx.fillStyle = colors.muted;
+        ctx.font = "12px system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText("Time", padding.left + plotWidth / 2, height - 6);
+        ctx.translate(12, padding.top + plotHeight / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textBaseline = "middle";
+        ctx.fillText("Glucose (mg/dL)", 0, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = colors.muted;
+        ctx.font = "11px system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        for (let i = 0; i <= 2; i++) {
+          const x = padding.left + (plotWidth * i) / 2;
+          const time = bounds.minTime + ((bounds.maxTime - bounds.minTime) * i) / 2;
+          ctx.fillText(formatAxisDate(time), x, padding.top + plotHeight + 4);
+        }
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        for (let i = 0; i <= 4; i++) {
+          const value = bounds.maxValue - ((bounds.maxValue - bounds.minValue) * i) / 4;
+          const y = padding.top + (plotHeight * i) / 4;
+          ctx.fillText(String(Math.round(value)), padding.left - 6, y);
+        }
+        ctx.restore();
+      }
+
+      function drawChart() {
+        const { width, height } = resizeCanvas();
+        const colors = getThemeColors();
+        const padding = { top: 16, right: 18, bottom: 40, left: 48 };
+        const plotWidth = Math.max(1, width - padding.left - padding.right);
+        const plotHeight = Math.max(1, height - padding.top - padding.bottom);
+        const visibleEntries = getVisibleEntries();
+        const bounds = getChartBounds(visibleEntries);
+        const xForTime = (time) =>
+          padding.left + ((time - bounds.minTime) / (bounds.maxTime - bounds.minTime)) * plotWidth;
+        const yForValue = (value) =>
+          padding.top + plotHeight - ((value - bounds.minValue) / (bounds.maxValue - bounds.minValue)) * plotHeight;
+
+        chartState.visibleEntries = visibleEntries;
+        chartState.bounds = bounds;
+        chartState.padding = padding;
+        chartState.plotWidth = plotWidth;
+        chartState.plotHeight = plotHeight;
+
+        updateStats(visibleEntries);
+        updateRangeButtons();
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = colors.surface;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = colors.border;
+        ctx.globalAlpha = 0.4;
+        for (let i = 0; i <= 4; i++) {
+          const y = padding.top + (plotHeight * i) / 4;
+          ctx.beginPath();
+          ctx.moveTo(padding.left, y);
+          ctx.lineTo(padding.left + plotWidth, y);
+          ctx.stroke();
+        }
+        for (let i = 0; i <= 6; i++) {
+          const x = padding.left + (plotWidth * i) / 6;
+          ctx.beginPath();
+          ctx.moveTo(x, padding.top);
+          ctx.lineTo(x, padding.top + plotHeight);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        const targetTop = yForValue(TARGET_HIGH);
+        const targetBottom = yForValue(TARGET_LOW);
+        ctx.fillStyle = colors.rangeFill;
+        ctx.fillRect(padding.left, targetTop, plotWidth, targetBottom - targetTop);
+        ctx.strokeStyle = colors.rangeStroke;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        [targetTop, targetBottom].forEach((y) => {
+          ctx.beginPath();
+          ctx.moveTo(padding.left, y);
+          ctx.lineTo(padding.left + plotWidth, y);
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+
+        drawAxisLabels(width, height, padding, plotWidth, plotHeight, bounds, colors);
+
+        if (!visibleEntries.length) {
+          ctx.fillStyle = colors.muted;
+          ctx.font = "13px system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("No readings in this range", padding.left + plotWidth / 2, padding.top + plotHeight / 2);
+          hideTooltip();
+          return;
+        }
+
+        ctx.beginPath();
+        visibleEntries.forEach((entry, index) => {
+          const x = xForTime(new Date(entry.timestamp).getTime());
+          const y = yForValue(entry.value);
+          if (index === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        ctx.strokeStyle = colors.primary;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        visibleEntries.forEach((entry) => {
+          const x = xForTime(new Date(entry.timestamp).getTime());
+          const y = yForValue(entry.value);
+          const isSelected = entry.id === chartState.selectedId;
+          const isHigh = entry.value > TARGET_HIGH;
+          const isLow = entry.value < TARGET_LOW;
+          ctx.save();
+          ctx.fillStyle = isHigh ? colors.high : isLow ? colors.low : colors.primary;
+          ctx.strokeStyle = colors.surface;
+          ctx.lineWidth = isSelected ? 3 : 2;
+          ctx.beginPath();
+          ctx.arc(x, y, isSelected ? 5 : 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
+
+      function scheduleDraw() {
+        if (rafId) return;
+        hideTooltip();
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          drawChart();
+        });
+      }
+
+      function renderHistory() {
+        historyTableBody.textContent = "";
+        const recentEntries = entries.slice().reverse();
+        if (!recentEntries.length) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 5;
+          cell.className = "empty-table-cell";
+          cell.textContent = "No readings logged yet.";
+          row.appendChild(cell);
+          historyTableBody.appendChild(row);
+          return;
+        }
+
+        recentEntries.forEach((entry) => {
+          const row = document.createElement("tr");
+          const dateCell = document.createElement("td");
+          const valueCell = document.createElement("td");
+          const contextCell = document.createElement("td");
+          const notesCell = document.createElement("td");
+          const actionsCell = document.createElement("td");
+          const editButton = document.createElement("button");
+          const deleteButton = document.createElement("button");
+
+          dateCell.textContent = formatDateTime(entry.timestamp);
+          valueCell.textContent = formatLevel(entry.value);
+          contextCell.textContent = getContextLabel(entry.context);
+          notesCell.textContent = entry.notes || "";
+
+          actionsCell.className = "history-actions";
+          editButton.type = "button";
+          editButton.className = "btn btn--sm";
+          editButton.textContent = "Edit";
+          editButton.dataset.action = "edit";
+          editButton.dataset.id = entry.id;
+          deleteButton.type = "button";
+          deleteButton.className = "btn btn--sm btn--ghost";
+          deleteButton.textContent = "Delete";
+          deleteButton.dataset.action = "delete";
+          deleteButton.dataset.id = entry.id;
+
+          actionsCell.append(editButton, deleteButton);
+          row.append(dateCell, valueCell, contextCell, notesCell, actionsCell);
+          historyTableBody.appendChild(row);
+        });
+      }
+
+      function resetForm({ keepStatus = false } = {}) {
+        editingId = null;
+        readingForm.reset();
+        readingContext.value = "unspecified";
+        setTimeToNow();
+        saveReadingButton.textContent = "Save reading";
+        cancelEditButton.hidden = true;
+        if (!keepStatus) {
+          setStatus("");
+        }
+      }
+
+      function updateAll() {
+        renderHistory();
+        scheduleDraw();
+      }
+
+      function upsertEntry(entry) {
+        const normalized = normalizeEntry(entry);
+        if (!normalized) return false;
+        const index = entries.findIndex((item) => item.id === normalized.id);
+        if (index >= 0) {
+          entries[index] = normalized;
+        } else {
+          entries.push(normalized);
+        }
+        sortEntries();
+        saveEntries();
+        return true;
+      }
+
+      function csvEscape(value) {
+        const text = String(value ?? "");
+        return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      }
+
+      function exportCsv() {
+        if (!entries.length) {
+          setStatus("There are no readings to export.", true);
+          return;
+        }
+        const header = ["timestamp", "glucose_mg_dl", "context", "notes"];
+        const rows = entries.map((entry) => [
+          entry.timestamp,
+          String(Math.round(entry.value)),
+          entry.context,
+          entry.notes
+        ]);
+        const csv = [header, ...rows]
+          .map((row) => row.map(csvEscape).join(","))
+          .join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const stamp = new Date().toISOString().slice(0, 10);
+        link.href = url;
+        link.download = `glucose-readings-${stamp}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        setStatus(`Exported ${entries.length} readings.`);
+      }
+
+      function parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let cell = "";
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const next = text[i + 1];
+          if (inQuotes) {
+            if (char === '"' && next === '"') {
+              cell += '"';
+              i += 1;
+            } else if (char === '"') {
+              inQuotes = false;
+            } else {
+              cell += char;
+            }
+          } else if (char === '"') {
+            inQuotes = true;
+          } else if (char === ",") {
+            row.push(cell);
+            cell = "";
+          } else if (char === "\n") {
+            row.push(cell);
+            rows.push(row);
+            row = [];
+            cell = "";
+          } else if (char !== "\r") {
+            cell += char;
+          }
+        }
+        if (cell.length || row.length) {
+          row.push(cell);
+          rows.push(row);
+        }
+        return rows.filter((csvRow) => csvRow.some((value) => value.trim() !== ""));
+      }
+
+      function normalizeHeader(value) {
+        return value
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "");
+      }
+
+      function findColumn(headers, names) {
+        return headers.findIndex((header) => names.includes(header));
+      }
+
+      function parseImportedDate(timestamp, dateValue, timeValue) {
+        const raw = timestamp || [dateValue, timeValue].filter(Boolean).join(" ");
+        if (!raw) return null;
+        const date = new Date(raw);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+
+      function importCsvText(text) {
+        const rows = parseCsv(text);
+        if (rows.length < 2) {
+          throw new Error("CSV does not contain any data rows.");
+        }
+
+        const headers = rows[0].map(normalizeHeader);
+        const timestampIndex = findColumn(headers, ["timestamp", "datetime", "date_time", "reading_time"]);
+        const dateIndex = findColumn(headers, ["date", "reading_date"]);
+        const timeIndex = findColumn(headers, ["time", "reading_time_only"]);
+        const valueIndex = findColumn(headers, ["glucose_mg_dl", "glucose", "level", "reading", "value", "mg_dl"]);
+        const contextIndex = findColumn(headers, ["context", "tag", "meal_context"]);
+        const notesIndex = findColumn(headers, ["notes", "note", "comment", "comments"]);
+
+        if (valueIndex < 0 || (timestampIndex < 0 && dateIndex < 0)) {
+          throw new Error("CSV must include timestamp and glucose_mg_dl columns.");
+        }
+
+        const existingSignatures = new Set(
+          entries.map((entry) => `${entry.timestamp}|${entry.value}|${entry.context}|${entry.notes}`)
+        );
+        let imported = 0;
+        let skipped = 0;
+
+        rows.slice(1).forEach((row) => {
+          const date = parseImportedDate(row[timestampIndex], row[dateIndex], row[timeIndex]);
+          const value = Number(row[valueIndex]);
+          if (!date || !Number.isFinite(value)) {
+            skipped += 1;
+            return;
+          }
+          const entry = normalizeEntry({
+            timestamp: date.toISOString(),
+            value,
+            context: row[contextIndex] || "unspecified",
+            notes: row[notesIndex] || ""
+          });
+          if (!entry) {
+            skipped += 1;
+            return;
+          }
+          const signature = `${entry.timestamp}|${entry.value}|${entry.context}|${entry.notes}`;
+          if (existingSignatures.has(signature)) {
+            skipped += 1;
+            return;
+          }
+          existingSignatures.add(signature);
+          entries.push(entry);
+          imported += 1;
+        });
+
+        if (imported > 0) {
+          sortEntries();
+          saveEntries();
+        }
+        return { imported, skipped };
+      }
+
+      readingForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value = Number(readingValue.value);
+        const date = parseInputDate(readingTime.value);
+        if (!Number.isFinite(value) || value < 20 || value > 600) {
+          setStatus("Enter a glucose value between 20 and 600 mg/dL.", true);
+          readingValue.focus();
+          return;
+        }
+        if (!date) {
+          setStatus("Choose a valid date and time.", true);
+          readingTime.focus();
+          return;
+        }
+
+        const ok = upsertEntry({
+          id: editingId || makeId(),
+          timestamp: date.toISOString(),
+          value,
+          context: readingContext.value || "unspecified",
+          notes: readingNotes.value.trim()
+        });
+        if (!ok) {
+          setStatus("The reading could not be saved.", true);
+          return;
+        }
+
+        const message = editingId ? "Updated reading." : "Saved reading.";
+        resetForm({ keepStatus: true });
+        setStatus(message);
+        updateAll();
+      });
+
+      setNowButton.addEventListener("click", () => {
+        setTimeToNow();
+        setStatus("Date and time set to now.");
+      });
+
+      cancelEditButton.addEventListener("click", () => {
+        resetForm();
+        updateStats(getVisibleEntries());
+      });
+
+      rangeButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          activeRange = button.dataset.range || "7d";
+          localStorage.setItem(RANGE_KEY, activeRange);
+          chartState.selectedId = null;
+          scheduleDraw();
+        });
+      });
+
+      historyTableBody.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+        const entry = entries.find((item) => item.id === button.dataset.id);
+        if (!entry) return;
+
+        if (button.dataset.action === "edit") {
+          editingId = entry.id;
+          readingValue.value = String(Math.round(entry.value));
+          readingTime.value = toLocalInputValue(new Date(entry.timestamp));
+          readingContext.value = entry.context || "unspecified";
+          readingNotes.value = entry.notes || "";
+          saveReadingButton.textContent = "Update reading";
+          cancelEditButton.hidden = false;
+          chartState.selectedId = entry.id;
+          setStatus("Editing selected reading.");
+          scheduleDraw();
+          readingValue.focus();
+          return;
+        }
+
+        if (button.dataset.action === "delete") {
+          entries = entries.filter((item) => item.id !== entry.id);
+          if (editingId === entry.id) {
+            resetForm();
+          }
+          if (chartState.selectedId === entry.id) {
+            chartState.selectedId = null;
+          }
+          saveEntries();
+          setStatus("Deleted reading.");
+          updateAll();
+        }
+      });
+
+      clearAllButton.addEventListener("click", () => {
+        if (!entries.length) {
+          setStatus("There are no readings to clear.");
+          return;
+        }
+        if (!window.confirm("Clear all glucose readings stored in this browser?")) {
+          return;
+        }
+        entries = [];
+        saveEntries();
+        chartState.selectedId = null;
+        resetForm({ keepStatus: true });
+        setStatus("Cleared all readings.");
+        updateAll();
+      });
+
+      exportButton.addEventListener("click", exportCsv);
+      importButton.addEventListener("click", () => {
+        csvInput.click();
+      });
+      csvInput.addEventListener("change", () => {
+        const file = csvInput.files && csvInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+          try {
+            const result = importCsvText(String(reader.result || ""));
+            setStatus(`Imported ${result.imported} readings. Skipped ${result.skipped}.`);
+            updateAll();
+          } catch (error) {
+            setStatus(error.message || "CSV import failed.", true);
+          } finally {
+            csvInput.value = "";
+          }
+        });
+        reader.addEventListener("error", () => {
+          setStatus("The selected CSV could not be read.", true);
+          csvInput.value = "";
+        });
+        reader.readAsText(file);
+      });
+
+      function getEventClientPosition(event) {
+        if (event.touches && event.touches.length > 0) {
+          return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+        }
+        if (event.changedTouches && event.changedTouches.length > 0) {
+          return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+        }
+        return { x: event.clientX, y: event.clientY };
+      }
+
+      function findNearestEntry(x, y) {
+        const { visibleEntries, bounds, padding, plotWidth, plotHeight } = chartState;
+        if (!visibleEntries.length || !bounds || !padding) return null;
+        if (
+          x < padding.left ||
+          x > padding.left + plotWidth ||
+          y < padding.top ||
+          y > padding.top + plotHeight
+        ) {
+          return null;
+        }
+        const xForTime = (time) =>
+          padding.left + ((time - bounds.minTime) / (bounds.maxTime - bounds.minTime)) * plotWidth;
+        const yForValue = (value) =>
+          padding.top + plotHeight - ((value - bounds.minValue) / (bounds.maxValue - bounds.minValue)) * plotHeight;
+        let nearest = null;
+        let nearestDistance = Infinity;
+        visibleEntries.forEach((entry) => {
+          const pointX = xForTime(new Date(entry.timestamp).getTime());
+          const pointY = yForValue(entry.value);
+          const distance = Math.hypot(pointX - x, pointY - y);
+          if (distance < nearestDistance) {
+            nearest = { entry, x: pointX, y: pointY };
+            nearestDistance = distance;
+          }
+        });
+        return nearestDistance <= 34 ? nearest : null;
+      }
+
+      function handleChartMove(event) {
+        const rect = chart.getBoundingClientRect();
+        const position = getEventClientPosition(event);
+        const x = position.x - rect.left;
+        const y = position.y - rect.top;
+        const nearest = findNearestEntry(x, y);
+        if (!nearest) {
+          hideTooltip();
+          return;
+        }
+        positionTooltip(
+          nearest.x,
+          nearest.y,
+          `${formatLevel(nearest.entry.value)} - ${formatShortDate(nearest.entry.timestamp)}`
+        );
+      }
+
+      function handleChartClick(event) {
+        const rect = chart.getBoundingClientRect();
+        const position = getEventClientPosition(event);
+        const x = position.x - rect.left;
+        const y = position.y - rect.top;
+        const nearest = findNearestEntry(x, y);
+        if (!nearest) return;
+        chartState.selectedId = nearest.entry.id;
+        scheduleDraw();
+      }
+
+      function handleTouch(event) {
+        event.preventDefault();
+        handleChartMove(event);
+      }
+
+      function handleTouchEnd(event) {
+        handleChartClick(event);
+        hideTooltip();
+      }
+
+      chart.addEventListener("mousemove", handleChartMove);
+      chart.addEventListener("click", handleChartClick);
+      chart.addEventListener("mouseleave", hideTooltip);
+      chart.addEventListener("touchstart", handleTouch, { passive: false });
+      chart.addEventListener("touchmove", handleTouch, { passive: false });
+      chart.addEventListener("touchend", handleTouchEnd);
+      chart.addEventListener("touchcancel", handleTouchEnd);
+      window.addEventListener("resize", scheduleDraw);
+      if (window.matchMedia) {
+        const schemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        if (schemeQuery.addEventListener) {
+          schemeQuery.addEventListener("change", scheduleDraw);
+        } else if (schemeQuery.addListener) {
+          schemeQuery.addListener(scheduleDraw);
+        }
+      }
+
+      loadEntries();
+      resetForm();
+      updateAll();
+    </script>
+  </body>
+</html>
