@@ -7,6 +7,7 @@ A modern, lightweight set of browser-based utilities (static HTML/CSS/JS). No bu
 - Strong Password Generator (`StrongPassword.html`): configurable passwords with weighted character sets and multi-output.
 - Dose Calculator (`DoseCalculator.html`): half-life decay chart with daily dosing, stats, and click-to-read values.
 - Glucose Monitor (`GlucoseMonitor.html`): local glucose logging with time-scale charts, stats, and CSV import/export.
+- BabyCalendar (`BabyCalendar.html`): local baby event logging with emoji chart lanes, custom event types, and CSV import/export.
 - QR Code Generator (`QRCodeGenerator.html`): client-side QR creation with selectable version, error correction, and mask.
 
 ## Add a new utility

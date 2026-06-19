@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>BabyCalendar - ToolSuite</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header site-header--compact">
+      <div class="container header-row">
+        <a class="btn btn--ghost" href="index.html">Back</a>
+        <div>
+          <h1 class="site-header__title">BabyCalendar</h1>
+          <p class="site-header__subtitle">Log baby events locally and review feeding, pee, poo, and custom patterns.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <div class="card__header chart-header">
+          <div class="chart-header__left">
+            <h2 class="card__title">Event log</h2>
+            <p class="card__subtitle">Events are stored in this browser.</p>
+
+            <form class="form monitor-form" id="eventForm">
+              <div class="field-row">
+                <div class="field">
+                  <label class="field__label" for="eventType">Event</label>
+                  <select class="input" id="eventType" required></select>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="eventTime">Date and time</label>
+                  <input class="input" id="eventTime" type="datetime-local" required />
+                </div>
+              </div>
+              <div class="field">
+                <label class="field__label" for="eventNotes">Notes</label>
+                <input class="input" id="eventNotes" type="text" maxlength="180" />
+              </div>
+              <div class="actions monitor-actions">
+                <button class="btn btn--primary" id="saveEventButton" type="submit">Save event</button>
+                <button class="btn" id="setNowButton" type="button">Use current time</button>
+                <button class="btn btn--ghost" id="cancelEditButton" type="button" hidden>Cancel edit</button>
+              </div>
+            </form>
+
+            <fieldset class="fieldset event-type-panel">
+              <legend class="fieldset__legend">Event types</legend>
+              <form class="form event-type-form" id="eventTypeForm">
+                <div class="field-row">
+                  <div class="field">
+                    <label class="field__label" for="typeLabel">Label</label>
+                    <input class="input" id="typeLabel" type="text" maxlength="32" />
+                  </div>
+                  <div class="field emoji-field">
+                    <label class="field__label" for="typeEmoji">Emoji</label>
+                    <input class="input emoji-input" id="typeEmoji" type="text" maxlength="8" />
+                  </div>
+                </div>
+                <div class="actions monitor-actions">
+                  <button class="btn btn--sm" id="saveTypeButton" type="submit">Add type</button>
+                  <button class="btn btn--sm btn--ghost" id="cancelTypeEditButton" type="button" hidden>
+                    Cancel type edit
+                  </button>
+                </div>
+              </form>
+              <div class="event-type-list" id="eventTypeList" aria-label="Configured event types"></div>
+            </fieldset>
+          </div>
+
+          <aside class="stats-panel stats-panel--header">
+            <h3 class="stats-title">Chart readout</h3>
+            <p class="stats-subtitle">Click a chart emoji to pin an event.</p>
+            <div class="stats-selected" id="selectedValue">No event selected.</div>
+            <div class="stats-list">
+              <div class="stats-row">
+                <span>Events</span>
+                <span class="stats-value" id="statCount">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Feedings</span>
+                <span class="stats-value" id="statFeeding">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Pee</span>
+                <span class="stats-value" id="statPee">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Poo</span>
+                <span class="stats-value" id="statPoo">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Busiest</span>
+                <span class="stats-value" id="statBusiest">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Latest</span>
+                <span class="stats-value" id="statLatest">--</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="range-controls" aria-label="Chart time scale">
+          <button class="range-button" type="button" data-range="1d">24h</button>
+          <button class="range-button" type="button" data-range="3d">3 days</button>
+          <button class="range-button" type="button" data-range="7d">7 days</button>
+          <button class="range-button" type="button" data-range="14d">14 days</button>
+          <button class="range-button" type="button" data-range="30d">30 days</button>
+          <button class="range-button" type="button" data-range="90d">90 days</button>
+          <button class="range-button" type="button" data-range="all">All</button>
+        </div>
+
+        <div class="chart-area">
+          <canvas id="babyChart" class="chart-canvas" role="img" aria-label="Baby events over time"></canvas>
+          <div id="chartTooltip" class="chart-tooltip" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="table-section">
+          <div class="section__header table-header-row">
+            <div>
+              <h3 class="section__title">Event history</h3>
+              <p class="section__subtitle">Most recent events are shown first. Import and export CSV backups here.</p>
+            </div>
+            <div class="history-toolbar">
+              <button class="btn btn--sm" id="exportButton" type="button">Export CSV</button>
+              <button class="btn btn--sm" id="importButton" type="button">Import CSV</button>
+              <input class="visually-hidden" id="csvInput" type="file" accept=".csv,text/csv" />
+              <button class="btn btn--ghost btn--sm" id="clearAllButton" type="button">Clear all</button>
+            </div>
+          </div>
+          <p class="status-text history-status" id="statusText" role="status" aria-live="polite"></p>
+          <div class="table-wrapper">
+            <table class="history-table" id="historyTable">
+              <caption class="table-caption">
+                CSV columns: timestamp, event_type_id, label, emoji, notes.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Date and time</th>
+                  <th scope="col">Event</th>
+                  <th scope="col">Notes</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p class="footer__text">Tracking data stays in this browser unless you export it.</p>
+      </footer>
+    </main>
+
+    <script>
+      const ENTRY_STORAGE_KEY = "toolsuite.babyCalendar.entries.v1";
+      const TYPE_STORAGE_KEY = "toolsuite.babyCalendar.types.v1";
+      const RANGE_KEY = "toolsuite.babyCalendar.range.v1";
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      const RANGE_DAYS = {
+        "1d": 1,
+        "3d": 3,
+        "7d": 7,
+        "14d": 14,
+        "30d": 30,
+        "90d": 90
+      };
+      const DEFAULT_TYPES = [
+        { id: "feeding", label: "Feeding", emoji: "🍼" },
+        { id: "pee", label: "Pee", emoji: "💧" },
+        { id: "poo", label: "Poo", emoji: "💩" },
+        { id: "sleep", label: "Sleep", emoji: "😴" },
+        { id: "medicine", label: "Medicine", emoji: "💊" },
+        { id: "other", label: "Other", emoji: "⭐" }
+      ];
+
+      const eventForm = document.getElementById("eventForm");
+      const eventType = document.getElementById("eventType");
+      const eventTime = document.getElementById("eventTime");
+      const eventNotes = document.getElementById("eventNotes");
+      const saveEventButton = document.getElementById("saveEventButton");
+      const setNowButton = document.getElementById("setNowButton");
+      const cancelEditButton = document.getElementById("cancelEditButton");
+      const eventTypeForm = document.getElementById("eventTypeForm");
+      const typeLabel = document.getElementById("typeLabel");
+      const typeEmoji = document.getElementById("typeEmoji");
+      const saveTypeButton = document.getElementById("saveTypeButton");
+      const cancelTypeEditButton = document.getElementById("cancelTypeEditButton");
+      const eventTypeList = document.getElementById("eventTypeList");
+      const exportButton = document.getElementById("exportButton");
+      const importButton = document.getElementById("importButton");
+      const csvInput = document.getElementById("csvInput");
+      const statusText = document.getElementById("statusText");
+      const clearAllButton = document.getElementById("clearAllButton");
+      const historyTableBody = document.querySelector("#historyTable tbody");
+      const rangeButtons = Array.from(document.querySelectorAll(".range-button"));
+      const chart = document.getElementById("babyChart");
+      const chartArea = chart.closest(".chart-area");
+      const tooltip = document.getElementById("chartTooltip");
+      const ctx = chart.getContext("2d");
+      const selectedValue = document.getElementById("selectedValue");
+      const statCount = document.getElementById("statCount");
+      const statFeeding = document.getElementById("statFeeding");
+      const statPee = document.getElementById("statPee");
+      const statPoo = document.getElementById("statPoo");
+      const statBusiest = document.getElementById("statBusiest");
+      const statLatest = document.getElementById("statLatest");
+
+      const chartState = {
+        visibleEntries: [],
+        lanes: [],
+        selectedId: null,
+        bounds: null,
+        padding: null,
+        plotWidth: 0,
+        plotHeight: 0
+      };
+
+      let entries = [];
+      let eventTypes = [];
+      let activeRange = localStorage.getItem(RANGE_KEY) || "7d";
+      let editingEntryId = null;
+      let editingTypeId = null;
+      let rafId = null;
+
+      function setStatus(message, isError = false) {
+        statusText.textContent = message;
+        statusText.classList.toggle("status-text--error", Boolean(isError));
+      }
+
+      function toLocalInputValue(date) {
+        const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        return local.toISOString().slice(0, 16);
+      }
+
+      function setTimeToNow() {
+        eventTime.value = toLocalInputValue(new Date());
+      }
+
+      function parseInputDate(value) {
+        if (!value) return null;
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+
+      function formatDateTime(value) {
+        return new Intl.DateTimeFormat(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit"
+        }).format(new Date(value));
+      }
+
+      function formatShortDate(value) {
+        return new Intl.DateTimeFormat(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit"
+        }).format(new Date(value));
+      }
+
+      function formatAxisDate(value) {
+        const options =
+          activeRange === "1d"
+            ? { hour: "numeric", minute: "2-digit" }
+            : { month: "short", day: "numeric" };
+        return new Intl.DateTimeFormat(undefined, options).format(new Date(value));
+      }
+
+      function makeId() {
+        if (window.crypto && window.crypto.randomUUID) {
+          return window.crypto.randomUUID();
+        }
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      }
+
+      function slugify(value) {
+        const slug = String(value || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+        return slug || `type-${Date.now()}`;
+      }
+
+      function uniqueTypeId(label, preferredId) {
+        const base = slugify(preferredId || label);
+        let candidate = base;
+        let index = 2;
+        while (eventTypes.some((type) => type.id === candidate)) {
+          candidate = `${base}-${index}`;
+          index += 1;
+        }
+        return candidate;
+      }
+
+      function normalizeEmoji(value) {
+        const text = String(value || "").trim();
+        if (!text) return "⭐";
+        return Array.from(text).slice(0, 3).join("");
+      }
+
+      function normalizeType(type) {
+        const label = String(type.label || "").trim();
+        if (!label) return null;
+        return {
+          id: String(type.id || slugify(label)),
+          label,
+          emoji: normalizeEmoji(type.emoji)
+        };
+      }
+
+      function getTypeById(typeId) {
+        return eventTypes.find((type) => type.id === typeId) || eventTypes[0] || DEFAULT_TYPES[0];
+      }
+
+      function normalizeEntry(entry) {
+        const date = new Date(entry.timestamp);
+        const type = getTypeById(entry.typeId || entry.eventTypeId || entry.event_type_id);
+        if (Number.isNaN(date.getTime()) || !type) {
+          return null;
+        }
+        return {
+          id: entry.id || makeId(),
+          timestamp: date.toISOString(),
+          typeId: type.id,
+          notes: entry.notes || ""
+        };
+      }
+
+      function sortEntries() {
+        entries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      }
+
+      function loadEventTypes() {
+        try {
+          const raw = localStorage.getItem(TYPE_STORAGE_KEY);
+          const parsed = raw ? JSON.parse(raw) : DEFAULT_TYPES;
+          eventTypes = Array.isArray(parsed) ? parsed.map(normalizeType).filter(Boolean) : [];
+        } catch (error) {
+          eventTypes = [];
+        }
+        if (!eventTypes.length) {
+          eventTypes = DEFAULT_TYPES.map((type) => ({ ...type }));
+        }
+      }
+
+      function loadEntries() {
+        try {
+          const raw = localStorage.getItem(ENTRY_STORAGE_KEY);
+          const parsed = raw ? JSON.parse(raw) : [];
+          entries = Array.isArray(parsed) ? parsed.map(normalizeEntry).filter(Boolean) : [];
+          sortEntries();
+        } catch (error) {
+          entries = [];
+          setStatus("Stored events could not be loaded.", true);
+        }
+      }
+
+      function saveEventTypes() {
+        localStorage.setItem(TYPE_STORAGE_KEY, JSON.stringify(eventTypes));
+      }
+
+      function saveEntries() {
+        localStorage.setItem(ENTRY_STORAGE_KEY, JSON.stringify(entries));
+      }
+
+      function getVisibleEntries() {
+        if (activeRange === "all") {
+          return entries.slice();
+        }
+        const days = RANGE_DAYS[activeRange] || RANGE_DAYS["7d"];
+        const end = Date.now();
+        const start = end - days * DAY_MS;
+        return entries.filter((entry) => {
+          const time = new Date(entry.timestamp).getTime();
+          return time >= start && time <= end;
+        });
+      }
+
+      function getChartLanes(visibleEntries) {
+        const used = new Set(visibleEntries.map((entry) => entry.typeId));
+        const selectedType = eventType.value;
+        return eventTypes.filter((type) => used.has(type.id) || type.id === selectedType || activeRange !== "all");
+      }
+
+      function countByType(visibleEntries) {
+        return visibleEntries.reduce((counts, entry) => {
+          counts[entry.typeId] = (counts[entry.typeId] || 0) + 1;
+          return counts;
+        }, {});
+      }
+
+      function updateStats(visibleEntries) {
+        const counts = countByType(visibleEntries);
+        const latest = visibleEntries[visibleEntries.length - 1];
+        const busiestId = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+        const busiestType = busiestId ? getTypeById(busiestId) : null;
+
+        statCount.textContent = visibleEntries.length ? String(visibleEntries.length) : "--";
+        statFeeding.textContent = counts.feeding ? String(counts.feeding) : "--";
+        statPee.textContent = counts.pee ? String(counts.pee) : "--";
+        statPoo.textContent = counts.poo ? String(counts.poo) : "--";
+        statBusiest.textContent = busiestType ? `${busiestType.emoji} ${busiestType.label}` : "--";
+        statLatest.textContent = latest ? `${getTypeById(latest.typeId).emoji} ${getTypeById(latest.typeId).label}` : "--";
+
+        const selected = entries.find((entry) => entry.id === chartState.selectedId);
+        if (!visibleEntries.length) {
+          selectedValue.textContent = "No events in this range.";
+          return;
+        }
+        selectedValue.textContent = selected
+          ? `${getTypeById(selected.typeId).emoji} ${getTypeById(selected.typeId).label} on ${formatShortDate(
+              selected.timestamp
+            )}`
+          : "Click a chart emoji to pin an event.";
+      }
+
+      function renderTypeOptions() {
+        const currentValue = eventType.value;
+        eventType.textContent = "";
+        eventTypes.forEach((type) => {
+          const option = document.createElement("option");
+          option.value = type.id;
+          option.textContent = `${type.emoji} ${type.label}`;
+          eventType.appendChild(option);
+        });
+        if (eventTypes.some((type) => type.id === currentValue)) {
+          eventType.value = currentValue;
+        }
+      }
+
+      function renderTypeList() {
+        eventTypeList.textContent = "";
+        eventTypes.forEach((type) => {
+          const chip = document.createElement("div");
+          const label = document.createElement("span");
+          const actions = document.createElement("span");
+          const editButton = document.createElement("button");
+          const deleteButton = document.createElement("button");
+          const isUsed = entries.some((entry) => entry.typeId === type.id);
+
+          chip.className = "event-type-chip";
+          label.className = "event-type-chip__label";
+          label.textContent = `${type.emoji} ${type.label}`;
+          actions.className = "event-type-chip__actions";
+
+          editButton.type = "button";
+          editButton.className = "btn btn--sm";
+          editButton.textContent = "Edit";
+          editButton.dataset.action = "edit-type";
+          editButton.dataset.id = type.id;
+
+          deleteButton.type = "button";
+          deleteButton.className = "btn btn--sm btn--ghost";
+          deleteButton.textContent = "Delete";
+          deleteButton.dataset.action = "delete-type";
+          deleteButton.dataset.id = type.id;
+          deleteButton.disabled = isUsed || eventTypes.length <= 1;
+          deleteButton.title = isUsed ? "Delete events of this type before removing it." : "";
+
+          actions.append(editButton, deleteButton);
+          chip.append(label, actions);
+          eventTypeList.appendChild(chip);
+        });
+      }
+
+      function renderTypes() {
+        renderTypeOptions();
+        renderTypeList();
+      }
+
+      function resetTypeForm({ keepStatus = false } = {}) {
+        editingTypeId = null;
+        eventTypeForm.reset();
+        saveTypeButton.textContent = "Add type";
+        cancelTypeEditButton.hidden = true;
+        if (!keepStatus) {
+          setStatus("");
+        }
+      }
+
+      function resetEventForm({ keepStatus = false } = {}) {
+        editingEntryId = null;
+        eventForm.reset();
+        if (eventTypes.length) {
+          eventType.value = eventTypes[0].id;
+        }
+        setTimeToNow();
+        saveEventButton.textContent = "Save event";
+        cancelEditButton.hidden = true;
+        if (!keepStatus) {
+          setStatus("");
+        }
+      }
+
+      function updateRangeButtons() {
+        rangeButtons.forEach((button) => {
+          const isActive = button.dataset.range === activeRange;
+          button.classList.toggle("is-active", isActive);
+          button.setAttribute("aria-pressed", String(isActive));
+        });
+      }
+
+      function getThemeColors() {
+        const styles = getComputedStyle(document.documentElement);
+        return {
+          surface: styles.getPropertyValue("--surface").trim() || "#ffffff",
+          surface2: styles.getPropertyValue("--surface-2").trim() || "#f1f5f9",
+          border: styles.getPropertyValue("--border").trim() || "#d8dee9",
+          primary: styles.getPropertyValue("--primary").trim() || "#2563eb",
+          text: styles.getPropertyValue("--text").trim() || "#0f172a",
+          muted: styles.getPropertyValue("--muted").trim() || "#475569"
+        };
+      }
+
+      function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = chart.getBoundingClientRect();
+        const width = Math.max(1, rect.width);
+        const height = Math.max(1, rect.height);
+        chart.width = Math.round(width * dpr);
+        chart.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { width, height };
+      }
+
+      function getChartBounds(visibleEntries) {
+        const times = visibleEntries.map((entry) => new Date(entry.timestamp).getTime());
+        if (activeRange === "all") {
+          let minTime = times.length ? Math.min(...times) : Date.now() - 7 * DAY_MS;
+          let maxTime = times.length ? Math.max(...times) : Date.now();
+          if (minTime === maxTime) {
+            minTime -= 12 * 60 * 60 * 1000;
+            maxTime += 12 * 60 * 60 * 1000;
+          }
+          return { minTime, maxTime };
+        }
+        const days = RANGE_DAYS[activeRange] || RANGE_DAYS["7d"];
+        const maxTime = Date.now();
+        return { minTime: maxTime - days * DAY_MS, maxTime };
+      }
+
+      function hideTooltip() {
+        tooltip.classList.remove("is-visible");
+      }
+
+      function positionTooltip(x, y, label) {
+        tooltip.textContent = label;
+        const areaWidth = chartArea.clientWidth;
+        const areaHeight = chartArea.clientHeight;
+        const tooltipWidth = tooltip.offsetWidth;
+        const tooltipHeight = tooltip.offsetHeight;
+        const minLeft = tooltipWidth / 2 + 8;
+        const maxLeft = areaWidth - tooltipWidth / 2 - 8;
+        let left = Math.min(Math.max(x, minLeft), maxLeft);
+        let top = Math.max(y, tooltipHeight + 12);
+        top = Math.min(top, areaHeight - 8);
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+        tooltip.classList.add("is-visible");
+      }
+
+      function drawAxisLabels(width, height, padding, plotWidth, plotHeight, bounds, colors) {
+        ctx.save();
+        ctx.fillStyle = colors.muted;
+        ctx.font = "12px system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText("Time", padding.left + plotWidth / 2, height - 8);
+        ctx.textBaseline = "top";
+        for (let i = 0; i <= 2; i++) {
+          const x = padding.left + (plotWidth * i) / 2;
+          const time = bounds.minTime + ((bounds.maxTime - bounds.minTime) * i) / 2;
+          ctx.fillText(formatAxisDate(time), x, padding.top + plotHeight + 6);
+        }
+        ctx.restore();
+      }
+
+      function drawChart() {
+        const visibleEntries = getVisibleEntries();
+        const lanes = getChartLanes(visibleEntries);
+        const laneHeight = 48;
+        chart.style.height = `${Math.max(320, lanes.length * laneHeight + 82)}px`;
+        const { width, height } = resizeCanvas();
+        const colors = getThemeColors();
+        const padding = { top: 18, right: 18, bottom: 48, left: 130 };
+        const plotWidth = Math.max(1, width - padding.left - padding.right);
+        const plotHeight = Math.max(1, height - padding.top - padding.bottom);
+        const bounds = getChartBounds(visibleEntries);
+        const laneSpacing = lanes.length > 1 ? plotHeight / lanes.length : plotHeight;
+        const laneIndexById = new Map(lanes.map((type, index) => [type.id, index]));
+        const xForTime = (time) =>
+          padding.left + ((time - bounds.minTime) / (bounds.maxTime - bounds.minTime)) * plotWidth;
+        const yForType = (typeId) => {
+          const index = laneIndexById.get(typeId);
+          return padding.top + laneSpacing * (Number.isFinite(index) ? index : 0) + laneSpacing / 2;
+        };
+
+        chartState.visibleEntries = visibleEntries;
+        chartState.lanes = lanes;
+        chartState.bounds = bounds;
+        chartState.padding = padding;
+        chartState.plotWidth = plotWidth;
+        chartState.plotHeight = plotHeight;
+
+        updateStats(visibleEntries);
+        updateRangeButtons();
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = colors.surface;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = colors.border;
+        ctx.globalAlpha = 0.45;
+        for (let i = 0; i <= 6; i++) {
+          const x = padding.left + (plotWidth * i) / 6;
+          ctx.beginPath();
+          ctx.moveTo(x, padding.top);
+          ctx.lineTo(x, padding.top + plotHeight);
+          ctx.stroke();
+        }
+        lanes.forEach((type, index) => {
+          const y = padding.top + laneSpacing * index + laneSpacing / 2;
+          ctx.beginPath();
+          ctx.moveTo(padding.left, y);
+          ctx.lineTo(padding.left + plotWidth, y);
+          ctx.stroke();
+        });
+        ctx.globalAlpha = 1;
+
+        ctx.save();
+        ctx.fillStyle = colors.text;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        lanes.forEach((type) => {
+          const y = yForType(type.id);
+          ctx.font = "20px system-ui, -apple-system, \"Segoe UI Emoji\", \"Apple Color Emoji\", sans-serif";
+          ctx.fillText(type.emoji, 18, y);
+          ctx.font = "12px system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+          ctx.fillStyle = colors.muted;
+          ctx.fillText(type.label, 48, y);
+          ctx.fillStyle = colors.text;
+        });
+        ctx.restore();
+
+        drawAxisLabels(width, height, padding, plotWidth, plotHeight, bounds, colors);
+
+        if (!visibleEntries.length) {
+          ctx.fillStyle = colors.muted;
+          ctx.font = "13px system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("No events in this range", padding.left + plotWidth / 2, padding.top + plotHeight / 2);
+          hideTooltip();
+          return;
+        }
+
+        visibleEntries.forEach((entry) => {
+          const type = getTypeById(entry.typeId);
+          const x = xForTime(new Date(entry.timestamp).getTime());
+          const y = yForType(entry.typeId);
+          const isSelected = entry.id === chartState.selectedId;
+          ctx.save();
+          if (isSelected) {
+            ctx.fillStyle = colors.primary;
+            ctx.globalAlpha = 0.18;
+            ctx.beginPath();
+            ctx.arc(x, y, 18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+          ctx.font = `${isSelected ? 28 : 24}px system-ui, -apple-system, "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(type.emoji, x, y);
+          ctx.restore();
+        });
+      }
+
+      function scheduleDraw() {
+        if (rafId) return;
+        hideTooltip();
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          drawChart();
+        });
+      }
+
+      function renderHistory() {
+        historyTableBody.textContent = "";
+        const recentEntries = entries.slice().reverse();
+        if (!recentEntries.length) {
+          const row = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = 4;
+          cell.className = "empty-table-cell";
+          cell.textContent = "No events logged yet.";
+          row.appendChild(cell);
+          historyTableBody.appendChild(row);
+          return;
+        }
+
+        recentEntries.forEach((entry) => {
+          const type = getTypeById(entry.typeId);
+          const row = document.createElement("tr");
+          const dateCell = document.createElement("td");
+          const eventCell = document.createElement("td");
+          const notesCell = document.createElement("td");
+          const actionsCell = document.createElement("td");
+          const editButton = document.createElement("button");
+          const deleteButton = document.createElement("button");
+
+          dateCell.textContent = formatDateTime(entry.timestamp);
+          eventCell.textContent = `${type.emoji} ${type.label}`;
+          notesCell.textContent = entry.notes || "";
+
+          actionsCell.className = "history-actions";
+          editButton.type = "button";
+          editButton.className = "btn btn--sm";
+          editButton.textContent = "Edit";
+          editButton.dataset.action = "edit";
+          editButton.dataset.id = entry.id;
+          deleteButton.type = "button";
+          deleteButton.className = "btn btn--sm btn--ghost";
+          deleteButton.textContent = "Delete";
+          deleteButton.dataset.action = "delete";
+          deleteButton.dataset.id = entry.id;
+
+          actionsCell.append(editButton, deleteButton);
+          row.append(dateCell, eventCell, notesCell, actionsCell);
+          historyTableBody.appendChild(row);
+        });
+      }
+
+      function updateAll() {
+        renderTypes();
+        renderHistory();
+        scheduleDraw();
+      }
+
+      function upsertEntry(entry) {
+        const normalized = normalizeEntry(entry);
+        if (!normalized) return false;
+        const index = entries.findIndex((item) => item.id === normalized.id);
+        if (index >= 0) {
+          entries[index] = normalized;
+        } else {
+          entries.push(normalized);
+        }
+        sortEntries();
+        saveEntries();
+        return true;
+      }
+
+      function csvEscape(value) {
+        const text = String(value ?? "");
+        return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      }
+
+      function exportCsv() {
+        if (!entries.length) {
+          setStatus("There are no events to export.", true);
+          return;
+        }
+        const header = ["timestamp", "event_type_id", "label", "emoji", "notes"];
+        const rows = entries.map((entry) => {
+          const type = getTypeById(entry.typeId);
+          return [entry.timestamp, type.id, type.label, type.emoji, entry.notes];
+        });
+        const csv = [header, ...rows]
+          .map((row) => row.map(csvEscape).join(","))
+          .join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const stamp = new Date().toISOString().slice(0, 10);
+        link.href = url;
+        link.download = `baby-calendar-${stamp}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        setStatus(`Exported ${entries.length} events.`);
+      }
+
+      function parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let cell = "";
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const next = text[i + 1];
+          if (inQuotes) {
+            if (char === '"' && next === '"') {
+              cell += '"';
+              i += 1;
+            } else if (char === '"') {
+              inQuotes = false;
+            } else {
+              cell += char;
+            }
+          } else if (char === '"') {
+            inQuotes = true;
+          } else if (char === ",") {
+            row.push(cell);
+            cell = "";
+          } else if (char === "\n") {
+            row.push(cell);
+            rows.push(row);
+            row = [];
+            cell = "";
+          } else if (char !== "\r") {
+            cell += char;
+          }
+        }
+        if (cell.length || row.length) {
+          row.push(cell);
+          rows.push(row);
+        }
+        return rows.filter((csvRow) => csvRow.some((value) => value.trim() !== ""));
+      }
+
+      function normalizeHeader(value) {
+        return value
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "");
+      }
+
+      function findColumn(headers, names) {
+        return headers.findIndex((header) => names.includes(header));
+      }
+
+      function parseImportedDate(timestamp, dateValue, timeValue) {
+        const raw = timestamp || [dateValue, timeValue].filter(Boolean).join(" ");
+        if (!raw) return null;
+        const date = new Date(raw);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+
+      function ensureImportedType(typeId, label, emoji) {
+        const cleanLabel = String(label || typeId || "Imported").trim();
+        const cleanEmoji = normalizeEmoji(emoji || "⭐");
+        const existingById = eventTypes.find((type) => type.id === typeId);
+        if (existingById) {
+          return existingById;
+        }
+        const existingByShape = eventTypes.find(
+          (type) => type.label.toLowerCase() === cleanLabel.toLowerCase() && type.emoji === cleanEmoji
+        );
+        if (existingByShape) {
+          return existingByShape;
+        }
+        const nextType = normalizeType({
+          id: uniqueTypeId(cleanLabel, typeId),
+          label: cleanLabel,
+          emoji: cleanEmoji
+        });
+        eventTypes.push(nextType);
+        saveEventTypes();
+        return nextType;
+      }
+
+      function importCsvText(text) {
+        const rows = parseCsv(text);
+        if (rows.length < 2) {
+          throw new Error("CSV does not contain any data rows.");
+        }
+
+        const headers = rows[0].map(normalizeHeader);
+        const timestampIndex = findColumn(headers, ["timestamp", "datetime", "date_time", "event_time"]);
+        const dateIndex = findColumn(headers, ["date", "event_date"]);
+        const timeIndex = findColumn(headers, ["time", "event_time_only"]);
+        const typeIdIndex = findColumn(headers, ["event_type_id", "type_id", "event_key", "event_type"]);
+        const labelIndex = findColumn(headers, ["label", "event_label", "type_label", "event"]);
+        const emojiIndex = findColumn(headers, ["emoji", "event_emoji"]);
+        const notesIndex = findColumn(headers, ["notes", "note", "comment", "comments"]);
+
+        if (timestampIndex < 0 && dateIndex < 0) {
+          throw new Error("CSV must include a timestamp column.");
+        }
+        if (typeIdIndex < 0 && labelIndex < 0) {
+          throw new Error("CSV must include event_type_id or label.");
+        }
+
+        const existingSignatures = new Set(
+          entries.map((entry) => {
+            const type = getTypeById(entry.typeId);
+            return `${entry.timestamp}|${type.label}|${type.emoji}|${entry.notes}`;
+          })
+        );
+        let imported = 0;
+        let skipped = 0;
+
+        rows.slice(1).forEach((row) => {
+          const date = parseImportedDate(row[timestampIndex], row[dateIndex], row[timeIndex]);
+          if (!date) {
+            skipped += 1;
+            return;
+          }
+          const label = row[labelIndex] || row[typeIdIndex] || "Imported";
+          const type = ensureImportedType(row[typeIdIndex] || slugify(label), label, row[emojiIndex]);
+          const notes = row[notesIndex] || "";
+          const entry = normalizeEntry({
+            timestamp: date.toISOString(),
+            typeId: type.id,
+            notes
+          });
+          if (!entry) {
+            skipped += 1;
+            return;
+          }
+          const signature = `${entry.timestamp}|${type.label}|${type.emoji}|${entry.notes}`;
+          if (existingSignatures.has(signature)) {
+            skipped += 1;
+            return;
+          }
+          existingSignatures.add(signature);
+          entries.push(entry);
+          imported += 1;
+        });
+
+        if (imported > 0) {
+          sortEntries();
+          saveEntries();
+          saveEventTypes();
+        }
+        return { imported, skipped };
+      }
+
+      eventForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const date = parseInputDate(eventTime.value);
+        if (!eventType.value) {
+          setStatus("Choose an event type.", true);
+          eventType.focus();
+          return;
+        }
+        if (!date) {
+          setStatus("Choose a valid date and time.", true);
+          eventTime.focus();
+          return;
+        }
+        const ok = upsertEntry({
+          id: editingEntryId || makeId(),
+          timestamp: date.toISOString(),
+          typeId: eventType.value,
+          notes: eventNotes.value.trim()
+        });
+        if (!ok) {
+          setStatus("The event could not be saved.", true);
+          return;
+        }
+        const message = editingEntryId ? "Updated event." : "Saved event.";
+        resetEventForm({ keepStatus: true });
+        setStatus(message);
+        updateAll();
+      });
+
+      eventTypeForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const label = typeLabel.value.trim();
+        const emoji = normalizeEmoji(typeEmoji.value);
+        if (!label) {
+          setStatus("Enter an event label.", true);
+          typeLabel.focus();
+          return;
+        }
+        if (editingTypeId) {
+          const type = eventTypes.find((item) => item.id === editingTypeId);
+          if (type) {
+            type.label = label;
+            type.emoji = emoji;
+          }
+          resetTypeForm({ keepStatus: true });
+          setStatus("Updated event type.");
+        } else {
+          eventTypes.push({
+            id: uniqueTypeId(label),
+            label,
+            emoji
+          });
+          resetTypeForm({ keepStatus: true });
+          setStatus("Added event type.");
+        }
+        saveEventTypes();
+        updateAll();
+      });
+
+      setNowButton.addEventListener("click", () => {
+        setTimeToNow();
+        setStatus("Date and time set to now.");
+      });
+
+      cancelEditButton.addEventListener("click", () => {
+        resetEventForm();
+        scheduleDraw();
+      });
+
+      cancelTypeEditButton.addEventListener("click", () => {
+        resetTypeForm();
+      });
+
+      eventType.addEventListener("change", scheduleDraw);
+
+      eventTypeList.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+        const type = eventTypes.find((item) => item.id === button.dataset.id);
+        if (!type) return;
+
+        if (button.dataset.action === "edit-type") {
+          editingTypeId = type.id;
+          typeLabel.value = type.label;
+          typeEmoji.value = type.emoji;
+          saveTypeButton.textContent = "Update type";
+          cancelTypeEditButton.hidden = false;
+          setStatus("Editing event type.");
+          typeLabel.focus();
+          return;
+        }
+
+        if (button.dataset.action === "delete-type") {
+          if (entries.some((entry) => entry.typeId === type.id)) {
+            setStatus("Delete events of this type before removing it.", true);
+            return;
+          }
+          eventTypes = eventTypes.filter((item) => item.id !== type.id);
+          if (!eventTypes.length) {
+            eventTypes = DEFAULT_TYPES.map((item) => ({ ...item }));
+          }
+          saveEventTypes();
+          resetTypeForm({ keepStatus: true });
+          resetEventForm({ keepStatus: true });
+          setStatus("Deleted event type.");
+          updateAll();
+        }
+      });
+
+      rangeButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          activeRange = button.dataset.range || "7d";
+          localStorage.setItem(RANGE_KEY, activeRange);
+          chartState.selectedId = null;
+          scheduleDraw();
+        });
+      });
+
+      historyTableBody.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+        const entry = entries.find((item) => item.id === button.dataset.id);
+        if (!entry) return;
+
+        if (button.dataset.action === "edit") {
+          editingEntryId = entry.id;
+          eventType.value = entry.typeId;
+          eventTime.value = toLocalInputValue(new Date(entry.timestamp));
+          eventNotes.value = entry.notes || "";
+          saveEventButton.textContent = "Update event";
+          cancelEditButton.hidden = false;
+          chartState.selectedId = entry.id;
+          setStatus("Editing selected event.");
+          scheduleDraw();
+          eventType.focus();
+          return;
+        }
+
+        if (button.dataset.action === "delete") {
+          entries = entries.filter((item) => item.id !== entry.id);
+          if (editingEntryId === entry.id) {
+            resetEventForm();
+          }
+          if (chartState.selectedId === entry.id) {
+            chartState.selectedId = null;
+          }
+          saveEntries();
+          setStatus("Deleted event.");
+          updateAll();
+        }
+      });
+
+      clearAllButton.addEventListener("click", () => {
+        if (!entries.length) {
+          setStatus("There are no events to clear.");
+          return;
+        }
+        if (!window.confirm("Clear all baby calendar events stored in this browser?")) {
+          return;
+        }
+        entries = [];
+        saveEntries();
+        chartState.selectedId = null;
+        resetEventForm({ keepStatus: true });
+        setStatus("Cleared all events.");
+        updateAll();
+      });
+
+      exportButton.addEventListener("click", exportCsv);
+      importButton.addEventListener("click", () => {
+        csvInput.click();
+      });
+      csvInput.addEventListener("change", () => {
+        const file = csvInput.files && csvInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+          try {
+            const result = importCsvText(String(reader.result || ""));
+            setStatus(`Imported ${result.imported} events. Skipped ${result.skipped}.`);
+            updateAll();
+          } catch (error) {
+            setStatus(error.message || "CSV import failed.", true);
+          } finally {
+            csvInput.value = "";
+          }
+        });
+        reader.addEventListener("error", () => {
+          setStatus("The selected CSV could not be read.", true);
+          csvInput.value = "";
+        });
+        reader.readAsText(file);
+      });
+
+      function getEventClientPosition(event) {
+        if (event.touches && event.touches.length > 0) {
+          return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+        }
+        if (event.changedTouches && event.changedTouches.length > 0) {
+          return { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY };
+        }
+        return { x: event.clientX, y: event.clientY };
+      }
+
+      function findNearestEntry(x, y) {
+        const { visibleEntries, lanes, bounds, padding, plotWidth, plotHeight } = chartState;
+        if (!visibleEntries.length || !bounds || !padding) return null;
+        if (
+          x < padding.left ||
+          x > padding.left + plotWidth ||
+          y < padding.top ||
+          y > padding.top + plotHeight
+        ) {
+          return null;
+        }
+        const laneSpacing = lanes.length > 1 ? plotHeight / lanes.length : plotHeight;
+        const laneIndexById = new Map(lanes.map((type, index) => [type.id, index]));
+        const xForTime = (time) =>
+          padding.left + ((time - bounds.minTime) / (bounds.maxTime - bounds.minTime)) * plotWidth;
+        const yForType = (typeId) => {
+          const index = laneIndexById.get(typeId);
+          return padding.top + laneSpacing * (Number.isFinite(index) ? index : 0) + laneSpacing / 2;
+        };
+        let nearest = null;
+        let nearestDistance = Infinity;
+        visibleEntries.forEach((entry) => {
+          const pointX = xForTime(new Date(entry.timestamp).getTime());
+          const pointY = yForType(entry.typeId);
+          const distance = Math.hypot(pointX - x, pointY - y);
+          if (distance < nearestDistance) {
+            nearest = { entry, x: pointX, y: pointY };
+            nearestDistance = distance;
+          }
+        });
+        return nearestDistance <= 36 ? nearest : null;
+      }
+
+      function handleChartMove(event) {
+        const rect = chart.getBoundingClientRect();
+        const position = getEventClientPosition(event);
+        const x = position.x - rect.left;
+        const y = position.y - rect.top;
+        const nearest = findNearestEntry(x, y);
+        if (!nearest) {
+          hideTooltip();
+          return;
+        }
+        const type = getTypeById(nearest.entry.typeId);
+        positionTooltip(nearest.x, nearest.y, `${type.emoji} ${type.label} - ${formatShortDate(nearest.entry.timestamp)}`);
+      }
+
+      function handleChartClick(event) {
+        const rect = chart.getBoundingClientRect();
+        const position = getEventClientPosition(event);
+        const x = position.x - rect.left;
+        const y = position.y - rect.top;
+        const nearest = findNearestEntry(x, y);
+        if (!nearest) return;
+        chartState.selectedId = nearest.entry.id;
+        scheduleDraw();
+      }
+
+      function handleTouch(event) {
+        event.preventDefault();
+        handleChartMove(event);
+      }
+
+      function handleTouchEnd(event) {
+        handleChartClick(event);
+        hideTooltip();
+      }
+
+      chart.addEventListener("mousemove", handleChartMove);
+      chart.addEventListener("click", handleChartClick);
+      chart.addEventListener("mouseleave", hideTooltip);
+      chart.addEventListener("touchstart", handleTouch, { passive: false });
+      chart.addEventListener("touchmove", handleTouch, { passive: false });
+      chart.addEventListener("touchend", handleTouchEnd);
+      chart.addEventListener("touchcancel", handleTouchEnd);
+      window.addEventListener("resize", scheduleDraw);
+      if (window.matchMedia) {
+        const schemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        if (schemeQuery.addEventListener) {
+          schemeQuery.addEventListener("change", scheduleDraw);
+        } else if (schemeQuery.addListener) {
+          schemeQuery.addListener(scheduleDraw);
+        }
+      }
+
+      loadEventTypes();
+      renderTypes();
+      loadEntries();
+      resetEventForm();
+      resetTypeForm();
+      updateAll();
+    </script>
+  </body>
+</html>
