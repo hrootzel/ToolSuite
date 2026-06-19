@@ -47,28 +47,6 @@
               </div>
             </form>
 
-            <fieldset class="fieldset event-type-panel">
-              <legend class="fieldset__legend">Event types</legend>
-              <form class="form event-type-form" id="eventTypeForm">
-                <div class="field-row">
-                  <div class="field">
-                    <label class="field__label" for="typeLabel">Label</label>
-                    <input class="input" id="typeLabel" type="text" maxlength="32" />
-                  </div>
-                  <div class="field emoji-field">
-                    <label class="field__label" for="typeEmoji">Emoji</label>
-                    <input class="input emoji-input" id="typeEmoji" type="text" maxlength="8" />
-                  </div>
-                </div>
-                <div class="actions monitor-actions">
-                  <button class="btn btn--sm" id="saveTypeButton" type="submit">Add type</button>
-                  <button class="btn btn--sm btn--ghost" id="cancelTypeEditButton" type="button" hidden>
-                    Cancel type edit
-                  </button>
-                </div>
-              </form>
-              <div class="event-type-list" id="eventTypeList" aria-label="Configured event types"></div>
-            </fieldset>
           </div>
 
           <aside class="stats-panel stats-panel--header">
@@ -150,6 +128,29 @@
             </table>
           </div>
         </div>
+
+        <fieldset class="fieldset event-type-panel">
+          <legend class="fieldset__legend">Event types</legend>
+          <form class="form event-type-form" id="eventTypeForm">
+            <div class="field-row">
+              <div class="field">
+                <label class="field__label" for="typeLabel">Label</label>
+                <input class="input" id="typeLabel" type="text" maxlength="32" />
+              </div>
+              <div class="field emoji-field">
+                <label class="field__label" for="typeEmoji">Emoji</label>
+                <input class="input emoji-input" id="typeEmoji" type="text" maxlength="8" />
+              </div>
+            </div>
+            <div class="actions monitor-actions">
+              <button class="btn btn--sm" id="saveTypeButton" type="submit">Add type</button>
+              <button class="btn btn--sm btn--ghost" id="cancelTypeEditButton" type="button" hidden>
+                Cancel type edit
+              </button>
+            </div>
+          </form>
+          <div class="event-type-list" id="eventTypeList" aria-label="Configured event types"></div>
+        </fieldset>
       </section>
 
       <footer class="footer">
