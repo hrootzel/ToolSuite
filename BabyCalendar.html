@@ -124,6 +124,151 @@
       @media (prefers-reduced-motion: reduce) {
         .baby-calendar-page .input, .baby-calendar-page .btn, .baby-calendar-page .range-button { transition: none; }
       }
+
+      /* Client-only quick log, daily review and timeline. Scoped to BabyCalendar. */
+      .baby-quick-log { margin-top: 20px; padding: 16px; background: var(--baby-mint); border: 1px solid var(--border); border-radius: 18px; }
+      .baby-section-heading { margin: 0 0 4px; font-size: 1.03rem; color: var(--text); }
+      .baby-section-intro { margin: 0 0 12px; font-size: .85rem; color: var(--muted); line-height: 1.45; }
+      .baby-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+      .baby-quick-button { cursor: pointer; border: 1px solid var(--border); color: var(--text); background: var(--surface); border-radius: 12px; padding: 9px 12px; font: inherit; font-size: .88rem; font-weight: 650; min-height: 44px; }
+      .baby-quick-button:hover { border-color: var(--primary); background: var(--baby-lavender); }
+      .baby-quick-button:focus-visible, .baby-day-button:focus-visible, .baby-timeline-marker:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+      .baby-quick-log .input { width: 100%; }
+      .baby-quick-note { margin: 6px 0; }
+      .baby-quick-note label { display: block; margin-bottom: 5px; font-size: .82rem; color: var(--muted); }
+      .baby-quick-batch { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 10px; }
+      .baby-quick-batch summary { cursor: pointer; font-weight: 700; color: var(--primary); font-size: .88rem; }
+      .baby-batch-grid { display: grid; gap: 8px; margin: 12px 0; }
+      .baby-batch-option { display: grid; grid-template-columns: auto minmax(95px, 120px) minmax(0, 1fr); align-items: center; gap: 9px; }
+      .baby-batch-option input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
+      .baby-batch-option span { color: var(--text); font-size: .88rem; }
+      .baby-batch-time { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+      .baby-batch-time label { flex: 1 1 190px; font-size: .85rem; color: var(--muted); }
+      .baby-batch-time .input { display: block; margin-top: 5px; }
+      .baby-daily-section { margin: 22px 0 24px; border: 1px solid var(--border); border-radius: 18px; padding: 18px; background: var(--surface); }
+      .baby-day-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: space-between; margin-bottom: 16px; }
+      .baby-day-top h2 { margin: 0 0 3px; font-size: 1.22rem; }
+      .baby-day-top p { margin: 0; color: var(--muted); font-size: .85rem; }
+      .baby-day-controls { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+      .baby-day-button { border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); min-height: 40px; min-width: 40px; cursor: pointer; padding: 6px 10px; font: inherit; }
+      .baby-day-controls input { max-width: 170px; min-height: 40px; box-sizing: border-box; }
+      .baby-daily-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; margin-bottom: 10px; }
+      .baby-summary-stat { border: 1px solid var(--border); border-radius: 14px; padding: 12px; min-width: 0; }
+      .baby-summary-stat:nth-child(4n+1) { background: var(--baby-peach); }
+      .baby-summary-stat:nth-child(4n+2) { background: var(--baby-mint); }
+      .baby-summary-stat:nth-child(4n+3) { background: var(--baby-lavender); }
+      .baby-summary-stat:nth-child(4n) { background: var(--baby-pink); }
+      .baby-summary-stat .baby-stat-label { display: block; font-size: .78rem; color: var(--muted); line-height: 1.35; }
+      .baby-summary-stat .baby-stat-value { display: block; font-size: 1.35rem; font-weight: 800; margin-top: 5px; color: var(--text); font-variant-numeric: tabular-nums; }
+      .baby-daily-note { color: var(--muted); font-size: .78rem; line-height: 1.5; margin: 8px 0 16px; }
+      .baby-timeline-title { margin: 16px 0 4px; font-size: 1rem; }
+      .baby-timeline-legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: .79rem; margin-bottom: 10px; }
+      .baby-timeline-legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--baby-plum); }
+      .baby-timeline-legend .awake::before { background: var(--baby-coral); }
+      .baby-timeline-legend .feed::before { background: var(--baby-sage); }
+      .baby-timeline-legend .diaper::before { background: var(--primary); }
+      .baby-timeline-scroll { overflow-x: auto; padding-bottom: 6px; }
+      .baby-timeline-inner { min-width: 620px; }
+      .baby-timeline-axis { position: relative; height: 30px; margin-left: 104px; margin-right: 8px; font-size: .76rem; color: var(--muted); }
+      .baby-timeline-hour { position: absolute; bottom: 3px; transform: translateX(-50%); white-space: nowrap; }
+      .baby-timeline-hour:first-child { transform: translateX(0); }
+      .baby-timeline-hour:last-child { transform: translateX(-100%); }
+      .baby-timeline-track { display: grid; grid-template-columns: 100px minmax(0,1fr); align-items: center; gap: 4px; margin: 5px 0; }
+      .baby-timeline-track-label { font-size: .82rem; color: var(--muted); font-weight: 650; }
+      .baby-timeline-lane { position: relative; height: 40px; margin-right: 8px; background: var(--surface-2); border-radius: 8px; overflow: hidden; background-image: repeating-linear-gradient(90deg, transparent, transparent calc(12.5% - 1px), var(--border) calc(12.5% - 1px), var(--border) 12.5%); }
+      .baby-timeline-span { position: absolute; top: 7px; bottom: 7px; min-width: 2px; border-radius: 4px; }
+      .baby-timeline-span.sleep { background: var(--baby-plum); opacity: .8; }
+      .baby-timeline-span.awake { background: var(--baby-coral); opacity: .42; }
+      .baby-timeline-span.open { background: repeating-linear-gradient(45deg, var(--baby-plum), var(--baby-plum) 5px, var(--baby-lavender) 5px, var(--baby-lavender) 9px); border: 1px dashed var(--primary); }
+      .baby-timeline-marker { position: absolute; top: 5px; height: 30px; width: 26px; margin-left: -13px; padding: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; font-size: 16px; line-height: 1; display: grid; place-items: center; cursor: help; }
+      .baby-timeline-marker:focus-visible { z-index: 3; }
+      .baby-timeline-empty { color: var(--muted); font-size: .83rem; margin: 12px 0 0; }
+      .baby-calendar-page .chart-tooltip { max-width: min(310px, 85vw); width: max-content; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+      .baby-tooltip-heading { display: block; font-weight: 700; }
+      .baby-tooltip-notes { display: block; margin-top: 5px; opacity: .92; white-space: pre-wrap; }
+      @media (max-width: 600px) {
+        .baby-daily-section { padding: 12px; }
+        .baby-batch-option { grid-template-columns: auto 96px minmax(0,1fr); gap: 5px; }
+        .baby-quick-button { flex: 1 1 40%; }
+        .baby-day-controls { width: 100%; }
+      }
+
+      /* Keep the entire history, but scroll once it exceeds 30 entries. */
+      .baby-calendar-page .baby-history-scroll {
+        max-height: 1500px; /* conservative fallback; JS sizes to 30 rendered rows */
+        overflow: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+      .baby-calendar-page .baby-history-scroll:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 2px;
+      }
+      .baby-calendar-page .baby-history-scroll .history-table { margin: 0; }
+      .baby-calendar-page .baby-history-scroll .history-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--surface-2);
+        box-shadow: inset 0 -1px var(--border);
+      }
+      /* Rarely used configuration stays folded until the user opens it. */
+      .baby-event-types-details {
+        margin-top: 20px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface-2);
+        padding: 0;
+      }
+      .baby-event-types-details > summary {
+        cursor: pointer;
+        padding: 14px 16px;
+        font-weight: 750;
+        color: var(--text);
+      }
+      .baby-event-types-details > summary:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 2px;
+      }
+      .baby-event-types-details[open] > summary { border-bottom: 1px solid var(--border); }
+      .baby-event-types-details .baby-event-types-hint {
+        margin-left: 7px;
+        font-weight: 400;
+        font-size: .82rem;
+        color: var(--muted);
+      }
+      .baby-event-types-details .event-type-panel { margin: 12px; }
+      /* Consistent styled hover/focus details for the activity timeline. */
+      .baby-calendar-page .baby-timeline-span { cursor: help; }
+      .baby-calendar-page .baby-timeline-span:hover,
+      .baby-calendar-page .baby-timeline-span:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; z-index: 2; }
+      .baby-calendar-page .baby-timeline-marker:hover,
+      .baby-calendar-page .baby-timeline-marker:focus-visible { border-color: var(--primary); z-index: 3; }
+      .baby-timeline-tooltip {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        pointer-events: none;
+        box-sizing: border-box;
+        max-width: min(350px, calc(100vw - 24px));
+        padding: 10px 13px;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        box-shadow: var(--shadow);
+        color: var(--text);
+        background: var(--surface);
+        font-size: .83rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+      }
+      .baby-timeline-tooltip.is-visible { display: block; }
+      .baby-timeline-tooltip .baby-tooltip-heading { font-weight: 750; }
+      .baby-timeline-tooltip .baby-tooltip-notes { white-space: pre-wrap; }
+      @media (max-width: 550px) {
+        .baby-event-types-details .baby-event-types-hint { display: block; margin: 4px 0 0 23px; }
+      }
     </style>
     <script id="baby-theme-before-paint">
       // Set an explicit theme before the page renders to avoid a light/dark flash.
@@ -189,6 +334,39 @@
               </div>
             </form>
 
+            <section class="baby-quick-log" aria-labelledby="quickLogTitle">
+              <h3 class="baby-section-heading" id="quickLogTitle">Quick log</h3>
+              <p class="baby-section-intro">Tap an event to record it at the current time. Add optional notes first (for example, “5 oz formula”).</p>
+              <div class="baby-quick-note">
+                <label for="quickNotes">Notes for one-tap event (optional)</label>
+                <input class="input" id="quickNotes" type="text" maxlength="180" placeholder="Milk amount, diaper details, etc." />
+              </div>
+              <div class="baby-quick-actions" id="quickActions">
+                <button class="baby-quick-button" type="button" data-quick-type="sleep-start">🌛 Sleep start</button>
+                <button class="baby-quick-button" type="button" data-quick-type="sleep-end">🌞 Wake</button>
+                <button class="baby-quick-button" type="button" data-quick-type="feeding">🍼 Feed</button>
+                <button class="baby-quick-button" type="button" data-quick-type="pee">💦 Wet</button>
+                <button class="baby-quick-button" type="button" data-quick-type="poo">💩 Poo</button>
+              </div>
+              <details class="baby-quick-batch" id="batchDetails">
+                <summary>Log multiple events at the same time</summary>
+                <div class="baby-batch-time">
+                  <label for="batchTime">Shared date and time
+                    <input class="input" id="batchTime" type="datetime-local" />
+                  </label>
+                  <button class="btn btn--sm" id="batchNow" type="button">Use now</button>
+                </div>
+                <div class="baby-batch-grid" id="batchOptions">
+                  <label class="baby-batch-option"><input type="checkbox" value="sleep-start"/><span>🌛 Sleep start</span><input class="input" type="text" maxlength="180" placeholder="Notes (optional)" /></label>
+                  <label class="baby-batch-option"><input type="checkbox" value="sleep-end"/><span>🌞 Wake</span><input class="input" type="text" maxlength="180" placeholder="Notes (optional)" /></label>
+                  <label class="baby-batch-option"><input type="checkbox" value="feeding"/><span>🍼 Feeding</span><input class="input" type="text" maxlength="180" placeholder="e.g. 5 oz milk" /></label>
+                  <label class="baby-batch-option"><input type="checkbox" value="pee"/><span>💦 Wet</span><input class="input" type="text" maxlength="180" placeholder="Notes (optional)" /></label>
+                  <label class="baby-batch-option"><input type="checkbox" value="poo"/><span>💩 Poo</span><input class="input" type="text" maxlength="180" placeholder="Notes (optional)" /></label>
+                </div>
+                <button class="btn btn--primary" id="saveBatch" type="button">Save selected events</button>
+              </details>
+            </section>
+
           </div>
 
           <aside class="stats-panel stats-panel--header">
@@ -244,6 +422,7 @@
           </aside>
         </div>
 
+
         <div class="range-controls" aria-label="Chart time scale">
           <button class="range-button" type="button" data-range="1d">24h</button>
           <button class="range-button" type="button" data-range="3d">3 days</button>
@@ -259,6 +438,45 @@
           <div id="chartTooltip" class="chart-tooltip" role="status" aria-live="polite"></div>
         </div>
 
+        <section class="baby-daily-section" aria-labelledby="dailyTitle">
+          <div class="baby-day-top">
+            <div>
+              <h2 id="dailyTitle">Daily overview</h2>
+              <p>Choose a calendar day for totals and the 24-hour activity timeline.</p>
+            </div>
+            <div class="baby-day-controls">
+              <button class="baby-day-button" id="dayPrevious" type="button" aria-label="Previous day">←</button>
+              <label class="visually-hidden" for="dailyDate">Daily summary date</label>
+              <input class="input" id="dailyDate" type="date" />
+              <button class="baby-day-button" id="dayNext" type="button" aria-label="Next day">→</button>
+              <button class="baby-day-button" id="dayToday" type="button">Today</button>
+            </div>
+          </div>
+          <div class="baby-daily-summary" aria-live="polite">
+            <div class="baby-summary-stat"><span class="baby-stat-label">🍼 Feedings</span><strong class="baby-stat-value" id="dailyFeedingCount">0</strong></div>
+            <div class="baby-summary-stat"><span class="baby-stat-label">Milk / formula</span><strong class="baby-stat-value" id="dailyMilkOunces">—</strong></div>
+            <div class="baby-summary-stat"><span class="baby-stat-label">Solids (labeled oz)</span><strong class="baby-stat-value" id="dailySolidOunces">—</strong></div>
+            <div class="baby-summary-stat"><span class="baby-stat-label">Unspecified oz</span><strong class="baby-stat-value" id="dailyUnknownOunces">—</strong></div>
+            <div class="baby-summary-stat"><span class="baby-stat-label">🌛 Completed sleep</span><strong class="baby-stat-value" id="dailySleep">—</strong></div>
+            <div class="baby-summary-stat"><span class="baby-stat-label">Daytime naps (est.)</span><strong class="baby-stat-value" id="dailyNaps">0</strong></div>
+            <div class="baby-summary-stat"><span class="baby-stat-label">💦 Wet diapers</span><strong class="baby-stat-value" id="dailyWet">0</strong></div>
+            <div class="baby-summary-stat"><span class="baby-stat-label">💩 Poo diapers</span><strong class="baby-stat-value" id="dailyPoo">0</strong></div>
+          </div>
+          <p class="baby-daily-note">Volume totals use only explicitly written “oz” amounts. Milk/formula and solids are counted only when identified in notes; unlabeled ounces are shown separately. Sleep duration is clipped to the selected day and excludes unfinished sessions. Daytime naps are estimated from completed sleeps that started between 6 AM and 8 PM and ended on the selected day. Wet and poo events are counted separately.</p>
+          <h3 class="baby-timeline-title">24-hour activity timeline</h3>
+          <div class="baby-timeline-legend" aria-label="Timeline legend"><span>Sleep</span><span class="awake">Awake between sleeps</span><span class="feed">Feed</span><span class="diaper">Diaper</span></div>
+          <div class="baby-timeline-scroll" tabindex="0" aria-label="Scroll 24-hour event timeline horizontally">
+            <div class="baby-timeline-inner">
+              <div class="baby-timeline-axis" id="timelineHours"></div>
+              <div class="baby-timeline-track"><span class="baby-timeline-track-label">Sleep / awake</span><div class="baby-timeline-lane" id="timelineSleep"></div></div>
+              <div class="baby-timeline-track"><span class="baby-timeline-track-label">🍼 Feeding</span><div class="baby-timeline-lane" id="timelineFeeding"></div></div>
+              <div class="baby-timeline-track"><span class="baby-timeline-track-label">💦 / 💩 Diaper</span><div class="baby-timeline-lane" id="timelineDiaper"></div></div>
+            </div>
+          </div>
+          <div id="timelineTooltip" class="baby-timeline-tooltip" role="tooltip" aria-hidden="true"></div>
+          <p class="baby-timeline-empty" id="timelineEmpty" hidden>No recorded events on this day.</p>
+        </section>
+
         <div class="table-section">
           <div class="section__header table-header-row">
             <div>
@@ -273,7 +491,7 @@
             </div>
           </div>
           <p class="status-text history-status" id="statusText" role="status" aria-live="polite"></p>
-          <div class="table-wrapper">
+          <div class="table-wrapper baby-history-scroll" id="historyScroll" tabindex="0" aria-label="Event history. Scroll to review older events.">
             <table class="history-table" id="historyTable">
               <caption class="table-caption">
                 CSV columns: timestamp, event_type_id, label, emoji, notes.
@@ -291,8 +509,10 @@
           </div>
         </div>
 
-        <fieldset class="fieldset event-type-panel">
-          <legend class="fieldset__legend">Event types</legend>
+        <details class="baby-event-types-details" id="eventTypesDetails">
+          <summary>⚙️ Event types <span class="baby-event-types-hint">Customize event labels and icons</span></summary>
+          <fieldset class="fieldset event-type-panel">
+            <legend class="fieldset__legend">Manage event types</legend>
           <form class="form event-type-form" id="eventTypeForm">
             <div class="field-row">
               <div class="field">
@@ -312,7 +532,8 @@
             </div>
           </form>
           <div class="event-type-list" id="eventTypeList" aria-label="Configured event types"></div>
-        </fieldset>
+          </fieldset>
+        </details>
       </section>
 
       <footer class="footer">
@@ -352,6 +573,30 @@
         { id: "other", label: "Other", emoji: "⭐" }
       ];
 
+      const quickNotes = document.getElementById("quickNotes");
+      const quickActions = document.getElementById("quickActions");
+      const batchDetails = document.getElementById("batchDetails");
+      const batchTime = document.getElementById("batchTime");
+      const batchNow = document.getElementById("batchNow");
+      const batchOptions = document.getElementById("batchOptions");
+      const saveBatch = document.getElementById("saveBatch");
+      const dailyDate = document.getElementById("dailyDate");
+      const dayPrevious = document.getElementById("dayPrevious");
+      const dayNext = document.getElementById("dayNext");
+      const dayToday = document.getElementById("dayToday");
+      const dailyFeedingCount = document.getElementById("dailyFeedingCount");
+      const dailyMilkOunces = document.getElementById("dailyMilkOunces");
+      const dailySolidOunces = document.getElementById("dailySolidOunces");
+      const dailyUnknownOunces = document.getElementById("dailyUnknownOunces");
+      const dailySleep = document.getElementById("dailySleep");
+      const dailyNaps = document.getElementById("dailyNaps");
+      const dailyWet = document.getElementById("dailyWet");
+      const dailyPoo = document.getElementById("dailyPoo");
+      const timelineHours = document.getElementById("timelineHours");
+      const timelineSleep = document.getElementById("timelineSleep");
+      const timelineFeeding = document.getElementById("timelineFeeding");
+      const timelineDiaper = document.getElementById("timelineDiaper");
+      const timelineEmpty = document.getElementById("timelineEmpty");
       const themeToggle = document.getElementById("themeToggle");
       const themeModeLabel = document.getElementById("themeModeLabel");
       const eventForm = document.getElementById("eventForm");
@@ -375,6 +620,9 @@
       const storageFooter = document.getElementById("storageFooter");
       const clearAllButton = document.getElementById("clearAllButton");
       const historyTableBody = document.querySelector("#historyTable tbody");
+      const historyScroll = document.getElementById("historyScroll");
+      const timelineTooltip = document.getElementById("timelineTooltip");
+      const timelineScroller = document.querySelector(".baby-timeline-scroll");
       const rangeButtons = Array.from(document.querySelectorAll(".range-button"));
       const chart = document.getElementById("babyChart");
       const chartArea = chart.closest(".chart-area");
@@ -857,6 +1105,199 @@
             : "No active sleep";
       }
 
+
+      // Local date boundaries (rather than UTC date strings) honor the viewer's
+      // timezone and daylight-saving changes. No daily preference is sent to the API.
+      function localDayValue(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+      }
+      function selectedDayBounds() {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dailyDate.value);
+        const date = match ? new Date(+match[1], +match[2] - 1, +match[3]) : new Date();
+        date.setHours(0,0,0,0);
+        const endDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+        return { start: date.getTime(), end: endDate.getTime() };
+      }
+      function shiftDailyDate(delta) {
+        const {start} = selectedDayBounds();
+        const next = new Date(start);
+        next.setDate(next.getDate() + delta);
+        dailyDate.value = localDayValue(next);
+        renderDailyOverview();
+      }
+      function asOunces(value) { return `${Math.round(value * 10) / 10} oz`; }
+      // Conservative interpretation of legacy free-text feed notes. Each explicit
+      // amount is classified by a nearby label; bare amounts are left unknown.
+      function parseFeedingVolumes(notes) {
+        const amounts = { milk:0, solids:0, unknown:0, milkN:0, solidsN:0, unknownN:0 };
+        const text = String(notes || "").toLowerCase();
+        const re = /(?:\b)(\d+(?:\.\d+)?)\s*(?:fl\.?\s*)?(?:oz|ounces?)\b/gi;
+        for (const match of text.matchAll(re)) {
+          const amount = +match[1];
+          if (!Number.isFinite(amount) || amount < 0) continue;
+          const before = text.slice(Math.max(0, match.index - 20), match.index);
+          const after = text.slice(match.index + match[0].length, match.index + match[0].length + 22);
+          // Prefer a label immediately after the quantity; look before only
+          // when the amount has no following type.
+          const afterLabel = /^\s*(?:of\s+)?(milk|breastmilk|breast\s+milk|formula|fruit|veg(?:etable)?s?|puree|purée|banana|mango|apple|pear|sweet\s+potato|solids?)\b/.exec(after);
+          const beforeLabel = /(milk|breastmilk|breast\s+milk|formula|fruit|veg(?:etable)?s?|puree|purée|banana|mango|apple|pear|sweet\s+potato|solids?)\s*$/i.exec(before);
+          const label = (afterLabel ? afterLabel[1] : (beforeLabel ? beforeLabel[1] : ""));
+          const kind = /^(milk|breastmilk|breast\s+milk|formula)$/.test(label) ? 'milk'
+            : label ? 'solids' : 'unknown';
+          amounts[kind] += amount;
+          amounts[kind+'N']++;
+        }
+        return amounts;
+      }
+      function calculateDailySummary(dayStart, dayEnd, source = entries) {
+        const today = source.filter(e => {
+          const t = new Date(e.timestamp).getTime();
+          return t >= dayStart && t < dayEnd;
+        });
+        const volumes = {milk:0,solids:0,unknown:0,milkN:0,solidsN:0,unknownN:0};
+        for (const e of today.filter(e=>e.typeId==='feeding')) {
+          const volume = parseFeedingVolumes(e.notes);
+          for (const key of Object.keys(volumes)) volumes[key] += volume[key];
+        }
+        const sleep = analyzeSleepEntries(source);
+        const sessions = sleep.completed.filter(s=>s.end >= dayStart && s.start < dayEnd);
+        const sleptMs = sessions.reduce((sum,s)=>sum+Math.max(0,Math.min(s.end,dayEnd)-Math.max(s.start,dayStart)),0);
+        return {
+          feedings: today.filter(e=>e.typeId==='feeding').length,
+          wet: today.filter(e=>e.typeId==='pee').length,
+          poo: today.filter(e=>e.typeId==='poo').length,
+          sleptMs,
+          // Ending sessions count avoids double-counting a midnight-spanning nap.
+          sessionEnds: sleep.completed.filter(s=>s.end >= dayStart && s.end < dayEnd).length,
+          naps: sleep.completed.filter(s => {
+            if (s.end < dayStart || s.end >= dayEnd) return false;
+            const hour = new Date(s.start).getHours();
+            return hour >= 6 && hour < 20;
+          }).length,
+          sessions, sleep, today, volumes
+        };
+      }
+      function addTimelineSpan(parent, kind, from, to, dayStart, dayEnd, heading, details = "") {
+        const left = Math.max(from,dayStart), right = Math.min(to,dayEnd);
+        if (right <= left) return;
+        const el = document.createElement('div');
+        el.className = `baby-timeline-span ${kind}`;
+        el.style.left = `${100*(left-dayStart)/(dayEnd-dayStart)}%`;
+        el.style.width = `${100*(right-left)/(dayEnd-dayStart)}%`;
+        // Sleep bars are keyboard focusable, not just hover-only rectangles.
+        el.tabIndex = 0;
+        el.setAttribute('role', 'img');
+        setTimelineTip(el, heading, details);
+        parent.appendChild(el);
+      }
+      function setTimelineTip(el, heading, details = '') {
+        el.dataset.tooltipHeading = heading;
+        el.dataset.tooltipNotes = details;
+        el.setAttribute('aria-label', heading + (details ? '. ' + details : ''));
+      }
+      function addTimelineMarker(parent, entry, dayStart, dayEnd) {
+        const t = new Date(entry.timestamp).getTime();
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'baby-timeline-marker';
+        el.style.left = `${100*(t-dayStart)/(dayEnd-dayStart)}%`;
+        const type = getTypeById(entry.typeId);
+        el.textContent = type.emoji;
+        setTimelineTip(el, `${type.emoji} ${type.label} · ${formatDateTime(entry.timestamp)}`, entry.notes || 'No notes recorded.');
+        parent.appendChild(el);
+      }
+      // A single floating tooltip works for markers AND periods, and remains
+      // visible outside the timeline's horizontally scrolling viewport.
+      function showTimelineTip(target, clientX, clientY) {
+        if (!target || !target.dataset.tooltipHeading) return;
+        timelineTooltip.textContent = '';
+        const heading = document.createElement('span');
+        heading.className = 'baby-tooltip-heading';
+        heading.textContent = target.dataset.tooltipHeading;
+        timelineTooltip.appendChild(heading);
+        if (target.dataset.tooltipNotes) {
+          const notes = document.createElement('span');
+          notes.className = 'baby-tooltip-notes';
+          notes.textContent = target.dataset.tooltipNotes;
+          timelineTooltip.appendChild(notes);
+        }
+        timelineTooltip.classList.add('is-visible');
+        timelineTooltip.setAttribute('aria-hidden', 'false');
+        positionTimelineTip(clientX, clientY);
+      }
+      function positionTimelineTip(clientX, clientY) {
+        if (!timelineTooltip.classList.contains('is-visible')) return;
+        const width = timelineTooltip.offsetWidth;
+        const height = timelineTooltip.offsetHeight;
+        const margin = 12;
+        const x = Math.min(Math.max(clientX + 14, margin), Math.max(margin, window.innerWidth - width - margin));
+        const y = clientY + height + 20 <= window.innerHeight
+          ? clientY + 14 : Math.max(margin, clientY - height - 14);
+        timelineTooltip.style.left = `${x}px`;
+        timelineTooltip.style.top = `${y}px`;
+      }
+      function hideTimelineTip() {
+        timelineTooltip.classList.remove('is-visible');
+        timelineTooltip.setAttribute('aria-hidden', 'true');
+      }
+      function renderDailyOverview() {
+        hideTimelineTip();
+        const {start,end} = selectedDayBounds();
+        const summary = calculateDailySummary(start,end);
+        dailyFeedingCount.textContent = String(summary.feedings);
+        dailyMilkOunces.textContent = summary.volumes.milkN ? asOunces(summary.volumes.milk) : '—';
+        dailySolidOunces.textContent = summary.volumes.solidsN ? asOunces(summary.volumes.solids) : '—';
+        dailyUnknownOunces.textContent = summary.volumes.unknownN ? asOunces(summary.volumes.unknown) : '—';
+        dailySleep.textContent = summary.sessions.length ? formatDuration(summary.sleptMs) : '—';
+        dailyNaps.textContent = String(summary.naps);
+        dailyWet.textContent = String(summary.wet);
+        dailyPoo.textContent = String(summary.poo);
+        timelineHours.textContent = '';
+        timelineSleep.textContent = '';
+        timelineFeeding.textContent = '';
+        timelineDiaper.textContent = '';
+        // Tick positions are timestamp-based, not hard-coded percentages: a
+        // daylight-saving transition may make a local calendar day 23/25h.
+        const firstDate = new Date(start);
+        for (let hour=0;hour<=24;hour+=3) {
+          const stamp = new Date(firstDate.getFullYear(),firstDate.getMonth(),firstDate.getDate(),hour).getTime();
+          if (stamp < start || stamp > end) continue;
+          const el = document.createElement('span');
+          el.className = 'baby-timeline-hour';
+          el.style.left = `${100*(stamp-start)/(end-start)}%`;
+          el.textContent = hour===24 ? '24h' : `${String(hour).padStart(2,'0')}:00`;
+          timelineHours.appendChild(el);
+        }
+        const entriesById = new Map(entries.map(entry => [entry.id, entry]));
+        for (const session of summary.sessions) {
+          const startEntry = entriesById.get(session.startId);
+          const endEntry = entriesById.get(session.endId);
+          const description = [
+            `Start: ${formatDateTime(session.start)}${startEntry?.notes ? ' — ' + startEntry.notes : ''}`,
+            `End: ${formatDateTime(session.end)}${endEntry?.notes ? ' — ' + endEntry.notes : ''}`
+          ].join('\n');
+          addTimelineSpan(timelineSleep,'sleep',session.start,session.end,start,end,
+            `🌛 Sleep · ${formatDuration(session.ms)}`, description);
+        }
+        for (const gap of summary.sleep.wakeGaps) {
+          addTimelineSpan(timelineSleep,'awake',gap.start,gap.end,start,end,
+            `🌞 Awake · ${formatDuration(gap.ms)}`,
+            `From: ${formatDateTime(gap.start)}\nUntil: ${formatDateTime(gap.end)}`);
+        }
+        if (summary.sleep.activeStart) {
+          const openStart = new Date(summary.sleep.activeStart.timestamp).getTime();
+          // Never draw hypothetical future sleep past 'now'.
+          addTimelineSpan(timelineSleep,'sleep open',openStart,Math.min(Date.now(),end),start,end,
+            '🌛 Sleep in progress',
+            `Start: ${formatDateTime(openStart)}${summary.sleep.activeStart.notes ? ' — ' + summary.sleep.activeStart.notes : ''}\nNo Sleep End recorded yet.`);
+        }
+        for (const entry of summary.today) {
+          if (entry.typeId === 'feeding') addTimelineMarker(timelineFeeding,entry,start,end);
+          if (entry.typeId === 'pee' || entry.typeId === 'poo') addTimelineMarker(timelineDiaper,entry,start,end);
+        }
+        timelineEmpty.hidden = Boolean(summary.today.length || summary.sessions.length || summary.sleep.wakeGaps.some(g=>g.end>start && g.start<end));
+      }
+
       function countByType(visibleEntries) {
         return visibleEntries.reduce((counts, entry) => {
           counts[entry.typeId] = (counts[entry.typeId] || 0) + 1;
@@ -1019,8 +1460,18 @@
         tooltip.classList.remove("is-visible");
       }
 
-      function positionTooltip(x, y, label) {
-        tooltip.textContent = label;
+      function positionTooltip(x, y, label, notes = "") {
+        tooltip.textContent = "";
+        const heading = document.createElement("span");
+        heading.className = "baby-tooltip-heading";
+        heading.textContent = label;
+        tooltip.appendChild(heading);
+        if (notes) {
+          const detail = document.createElement("span");
+          detail.className = "baby-tooltip-notes";
+          detail.textContent = notes;
+          tooltip.appendChild(detail);
+        }
         const areaWidth = chartArea.clientWidth;
         const areaHeight = chartArea.clientHeight;
         const tooltipWidth = tooltip.offsetWidth;
@@ -1162,6 +1613,21 @@
         });
       }
 
+      const HISTORY_VISIBLE_ROWS = 30;
+      function sizeHistoryViewport() {
+        const rows = Array.from(historyTableBody.rows);
+        if (rows.length <= HISTORY_VISIBLE_ROWS) {
+          historyScroll.style.maxHeight = 'none';
+          return;
+        }
+        const head = document.querySelector('#historyTable thead');
+        const headerHeight = head ? head.getBoundingClientRect().height : 0;
+        const rowHeight = rows.slice(0, HISTORY_VISIBLE_ROWS)
+          .reduce((total, row) => total + row.getBoundingClientRect().height, 0);
+        // Fallback for initial/unmeasured layouts. Height is measured from
+        // actual rendered rows, including multiline notes on narrow screens.
+        historyScroll.style.maxHeight = `${Math.ceil((headerHeight || 45) + (rowHeight || HISTORY_VISIBLE_ROWS * 48) + 2)}px`;
+      }
       function renderHistory() {
         historyTableBody.textContent = "";
         const sleepDurations = analyzeSleepEntries().endDurations;
@@ -1210,11 +1676,13 @@
           row.append(dateCell, eventCell, notesCell, actionsCell);
           historyTableBody.appendChild(row);
         });
+        sizeHistoryViewport();
       }
 
       function updateAll() {
         renderTypes();
         renderHistory();
+        renderDailyOverview();
         scheduleDraw();
       }
 
@@ -1403,6 +1871,63 @@
         if (imported > 0) sortEntries();
         return { imported, skipped };
       }
+
+
+      // One-tap events and batch events share the exact same transactional
+      // persistence path as the regular edit form and CSV importer.
+      quickActions.addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-quick-type]");
+        if (!button) return;
+        const typeId = button.dataset.quickType;
+        if (!eventTypes.some(type => type.id === typeId)) {
+          setStatus(`The ${typeId} event type is not configured.`, true);
+          return;
+        }
+        const when = new Date().toISOString();
+        const result = await commitMutation(() => upsertEntry({
+          id: makeId(), timestamp: when, typeId, notes: quickNotes.value.trim()
+        }));
+        if (!result.ok) return;
+        quickNotes.value = "";
+        setStatus(`Saved ${getTypeById(typeId).label} at ${formatShortDate(when)}.`);
+      });
+      batchNow.addEventListener("click", () => { batchTime.value = toLocalInputValue(new Date()); });
+      batchDetails.addEventListener("toggle", () => {
+        if (batchDetails.open) batchTime.value = toLocalInputValue(new Date());
+      });
+      saveBatch.addEventListener("click", async () => {
+        const when = parseInputDate(batchTime.value);
+        if (!when) { setStatus("Choose a valid shared date and time.", true); return; }
+        const selected = Array.from(batchOptions.querySelectorAll(".baby-batch-option"))
+          .filter(row => row.querySelector('input[type="checkbox"]').checked)
+          .map(row => ({
+            typeId: row.querySelector('input[type="checkbox"]').value,
+            notes: row.querySelector('input[type="text"]').value.trim()
+          }));
+        if (!selected.length) { setStatus("Select at least one event to log.", true); return; }
+        if (selected.some(item => !eventTypes.some(type => type.id === item.typeId))) {
+          setStatus("One of the selected event types is not configured.", true); return;
+        }
+        const timestamp = when.toISOString();
+        const result = await commitMutation(() => {
+          for (const item of selected) upsertEntry({id:makeId(),timestamp,typeId:item.typeId,notes:item.notes});
+          return selected.length;
+        });
+        if (!result.ok) return;
+        for (const row of batchOptions.querySelectorAll(".baby-batch-option")) {
+          row.querySelector('input[type="checkbox"]').checked = false;
+          row.querySelector('input[type="text"]').value = "";
+        }
+        batchTime.value = toLocalInputValue(new Date());
+        setStatus(`Saved ${result.value} events at ${formatShortDate(timestamp)}.`);
+      });
+      dayPrevious.addEventListener("click", () => shiftDailyDate(-1));
+      dayNext.addEventListener("click", () => shiftDailyDate(1));
+      dayToday.addEventListener("click", () => {
+        dailyDate.value = localDayValue(new Date());
+        renderDailyOverview();
+      });
+      dailyDate.addEventListener("change", renderDailyOverview);
 
       eventForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -1641,7 +2166,9 @@
           return;
         }
         const type = getTypeById(nearest.entry.typeId);
-        positionTooltip(nearest.x, nearest.y, `${type.emoji} ${type.label} - ${formatShortDate(nearest.entry.timestamp)}`);
+        positionTooltip(nearest.x, nearest.y,
+          `${type.emoji} ${type.label} - ${formatShortDate(nearest.entry.timestamp)}`,
+          nearest.entry.notes || "");
       }
 
       function handleChartClick(event) {
@@ -1665,6 +2192,34 @@
         hideTooltip();
       }
 
+      const timelineInteractive = '.baby-timeline-marker, .baby-timeline-span';
+      timelineScroller.addEventListener('pointerover', (event) => {
+        const target = event.target.closest(timelineInteractive);
+        if (target && timelineScroller.contains(target)) showTimelineTip(target, event.clientX, event.clientY);
+      });
+      timelineScroller.addEventListener('pointermove', (event) => {
+        const target = event.target.closest(timelineInteractive);
+        if (target && timelineScroller.contains(target)) positionTimelineTip(event.clientX, event.clientY);
+      });
+      timelineScroller.addEventListener('pointerout', (event) => {
+        const previous = event.target.closest(timelineInteractive);
+        const next = event.relatedTarget instanceof Element ? event.relatedTarget.closest(timelineInteractive) : null;
+        if (previous && previous !== next) hideTimelineTip();
+      });
+      timelineScroller.addEventListener('focusin', (event) => {
+        const target = event.target.closest(timelineInteractive);
+        if (target) {
+          const rect = target.getBoundingClientRect();
+          showTimelineTip(target, rect.left + rect.width / 2, rect.top);
+        }
+      });
+      timelineScroller.addEventListener('focusout', (event) => {
+        const next = event.relatedTarget instanceof Element ? event.relatedTarget.closest(timelineInteractive) : null;
+        if (!next) hideTimelineTip();
+      });
+      timelineScroller.addEventListener('scroll', hideTimelineTip, {passive: true});
+      window.addEventListener('resize', hideTimelineTip);
+
       chart.addEventListener("mousemove", handleChartMove);
       chart.addEventListener("click", handleChartClick);
       chart.addEventListener("mouseleave", hideTooltip);
@@ -1673,6 +2228,7 @@
       chart.addEventListener("touchend", handleTouchEnd);
       chart.addEventListener("touchcancel", handleTouchEnd);
       window.addEventListener("resize", scheduleDraw);
+      window.addEventListener("resize", () => requestAnimationFrame(sizeHistoryViewport));
       if (window.matchMedia) {
         const schemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
         if (schemeQuery.addEventListener) {
@@ -1692,6 +2248,8 @@
         }
       }
 
+      dailyDate.value = localDayValue(new Date());
+      batchTime.value = toLocalInputValue(new Date());
       initializeStorage();
     </script>
   </body>
