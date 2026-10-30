@@ -13,7 +13,7 @@
         <a class="btn btn--ghost" href="index.html">Back</a>
         <div>
           <h1 class="site-header__title">BabyCalendar</h1>
-          <p class="site-header__subtitle">Log baby events locally and review feeding, pee, poo, and custom patterns.</p>
+          <p class="site-header__subtitle">Log baby events and review feeding, pee, poo, and custom patterns.</p>
         </div>
       </div>
     </header>
@@ -23,7 +23,7 @@
         <div class="card__header chart-header">
           <div class="chart-header__left">
             <h2 class="card__title">Event log</h2>
-            <p class="card__subtitle">Events are stored in this browser.</p>
+            <p class="card__subtitle" id="storageDescription">Checking storage...</p>
 
             <form class="form monitor-form" id="eventForm">
               <div class="field-row">
@@ -77,6 +77,26 @@
               <div class="stats-row">
                 <span>Latest</span>
                 <span class="stats-value" id="statLatest">--</span>
+              </div>
+            </div>
+            <h3 class="stats-title" style="margin-top: 1rem;">Sleep tracking</h3>
+            <p class="stats-subtitle">Sleep Start and Sleep End are paired automatically.</p>
+            <div class="stats-list">
+              <div class="stats-row">
+                <span>Sleep (last 24h)</span>
+                <span class="stats-value" id="statSleep24">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Last sleep</span>
+                <span class="stats-value" id="statLastSleep">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Avg wake gap (7d)</span>
+                <span class="stats-value" id="statWakeGap">--</span>
+              </div>
+              <div class="stats-row">
+                <span>Current state</span>
+                <span class="stats-value" id="statSleepState">--</span>
               </div>
             </div>
           </aside>
@@ -154,14 +174,16 @@
       </section>
 
       <footer class="footer">
-        <p class="footer__text">Tracking data stays in this browser unless you export it.</p>
+        <p class="footer__text" id="storageFooter">Checking calendar storage...</p>
       </footer>
     </main>
 
     <script>
       const ENTRY_STORAGE_KEY = "toolsuite.babyCalendar.entries.v1";
       const TYPE_STORAGE_KEY = "toolsuite.babyCalendar.types.v1";
+      const SLEEP_TYPE_MIGRATION_KEY = "toolsuite.babyCalendar.sleepTypes.v2";
       const RANGE_KEY = "toolsuite.babyCalendar.range.v1";
+      const CALENDAR_API = new URL("./api/storage/baby-calendar", window.location.href).pathname;
       const DAY_MS = 24 * 60 * 60 * 1000;
       const RANGE_DAYS = {
         "1d": 1,
@@ -171,10 +193,17 @@
         "30d": 30,
         "90d": 90
       };
+      const SLEEP_TYPES = [
+        { id: "sleep-start", label: "Sleep Start", emoji: "🌛" },
+        { id: "sleep-end", label: "Sleep End", emoji: "🌞" }
+      ];
       const DEFAULT_TYPES = [
         { id: "feeding", label: "Feeding", emoji: "🍼" },
         { id: "pee", label: "Pee", emoji: "💧" },
         { id: "poo", label: "Poo", emoji: "💩" },
+        ...SLEEP_TYPES,
+        // Keep the historical single Sleep type for existing records. It does
+        // not participate in start/end duration calculations.
         { id: "sleep", label: "Sleep", emoji: "😴" },
         { id: "medicine", label: "Medicine", emoji: "💊" },
         { id: "other", label: "Other", emoji: "⭐" }
@@ -197,6 +226,8 @@
       const importButton = document.getElementById("importButton");
       const csvInput = document.getElementById("csvInput");
       const statusText = document.getElementById("statusText");
+      const storageDescription = document.getElementById("storageDescription");
+      const storageFooter = document.getElementById("storageFooter");
       const clearAllButton = document.getElementById("clearAllButton");
       const historyTableBody = document.querySelector("#historyTable tbody");
       const rangeButtons = Array.from(document.querySelectorAll(".range-button"));
@@ -211,6 +242,10 @@
       const statPoo = document.getElementById("statPoo");
       const statBusiest = document.getElementById("statBusiest");
       const statLatest = document.getElementById("statLatest");
+      const statSleep24 = document.getElementById("statSleep24");
+      const statLastSleep = document.getElementById("statLastSleep");
+      const statWakeGap = document.getElementById("statWakeGap");
+      const statSleepState = document.getElementById("statSleepState");
 
       const chartState = {
         visibleEntries: [],
@@ -228,6 +263,9 @@
       let editingEntryId = null;
       let editingTypeId = null;
       let rafId = null;
+      let storageMode = "loading"; // server, browser, or error
+      let serverRevision = 0;
+      let mutationInFlight = false;
 
       function setStatus(message, isError = false) {
         statusText.textContent = message;
@@ -341,6 +379,17 @@
         entries.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       }
 
+      function ensureSleepTypes() {
+        let added = false;
+        for (const type of SLEEP_TYPES) {
+          if (!eventTypes.some((existing) => existing.id === type.id)) {
+            eventTypes.push({ ...type });
+            added = true;
+          }
+        }
+        return added;
+      }
+
       function loadEventTypes() {
         try {
           const raw = localStorage.getItem(TYPE_STORAGE_KEY);
@@ -351,6 +400,14 @@
         }
         if (!eventTypes.length) {
           eventTypes = DEFAULT_TYPES.map((type) => ({ ...type }));
+        }
+        // One-time upgrade of older browser caches. Users may subsequently
+        // remove either type without it being recreated on each page load.
+        if (!localStorage.getItem(SLEEP_TYPE_MIGRATION_KEY)) {
+          if (ensureSleepTypes()) {
+            localStorage.setItem(TYPE_STORAGE_KEY, JSON.stringify(eventTypes));
+          }
+          localStorage.setItem(SLEEP_TYPE_MIGRATION_KEY, "1");
         }
       }
 
@@ -366,12 +423,180 @@
         }
       }
 
-      function saveEventTypes() {
-        localStorage.setItem(TYPE_STORAGE_KEY, JSON.stringify(eventTypes));
+      function updateStorageDescription() {
+        const description = storageMode === "server"
+          ? "Events and event types are saved on this Node server and shared across browsers."
+          : storageMode === "browser"
+            ? "Browser-only mode: this host does not offer the storage API."
+            : storageMode === "error"
+              ? "Server storage is unavailable. Editing is paused to protect your data."
+              : "Checking for server-side storage...";
+        storageDescription.textContent = description;
+        storageFooter.textContent = description;
       }
 
-      function saveEntries() {
-        localStorage.setItem(ENTRY_STORAGE_KEY, JSON.stringify(entries));
+      function applyServerState(state) {
+        serverRevision = state.revision;
+        eventTypes = state.eventTypes.map(normalizeType).filter(Boolean);
+        if (!eventTypes.length) eventTypes = DEFAULT_TYPES.map((type) => ({ ...type }));
+        if (state.dataVersion < 2) ensureSleepTypes();
+        entries = state.entries.map(normalizeEntry).filter(Boolean);
+        sortEntries();
+        chartState.selectedId = null;
+      }
+
+      function unpackStoredCalendar(envelope) {
+        if (!envelope || envelope.version !== 1 || !Number.isSafeInteger(envelope.revision) ||
+            typeof envelope.initialized !== "boolean") {
+          throw new Error("Unexpected generic storage API response.");
+        }
+        const data = envelope.initialized ? envelope.data : { entries: [], eventTypes: [] };
+        if (!data || (data.version !== undefined && data.version !== 1 && data.version !== 2) ||
+            !Array.isArray(data.entries) || !Array.isArray(data.eventTypes)) {
+          throw new Error("Invalid saved BabyCalendar data.");
+        }
+        return { ...envelope, dataVersion: data.version || 1, entries: data.entries, eventTypes: data.eventTypes };
+      }
+
+      async function readServerState() {
+        const response = await fetch(CALENDAR_API, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Server read failed (HTTP ${response.status}).`);
+        const state = await response.json();
+        return unpackStoredCalendar(state);
+      }
+
+      async function persistSnapshot() {
+        if (storageMode === "browser") {
+          // Preserve the original storage keys and CSV behavior for static hosting.
+          localStorage.setItem(TYPE_STORAGE_KEY, JSON.stringify(eventTypes));
+          localStorage.setItem(ENTRY_STORAGE_KEY, JSON.stringify(entries));
+          return;
+        }
+        if (storageMode !== "server") throw new Error("Calendar storage is not ready.");
+        const response = await fetch(CALENDAR_API, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ revision: serverRevision, data: { version: 2, eventTypes, entries } })
+        });
+        let result;
+        try { result = await response.json(); } catch { result = {}; }
+        if (!response.ok) {
+          const error = new Error(result.error || `Server save failed (HTTP ${response.status}).`);
+          error.conflict = response.status === 409;
+          throw error;
+        }
+        serverRevision = result.revision;
+      }
+
+      // Mutations are committed before reporting success. A 409 means another device
+      // changed the shared calendar; reload rather than silently overwrite its data.
+      async function commitMutation(change) {
+        if (mutationInFlight || !["server", "browser"].includes(storageMode)) {
+          setStatus("Storage is still busy or unavailable. Try again after it is ready.", true);
+          return { ok: false };
+        }
+        mutationInFlight = true;
+        const priorEntries = entries.map((entry) => ({ ...entry }));
+        const priorTypes = eventTypes.map((type) => ({ ...type }));
+        try {
+          const value = change();
+          await persistSnapshot();
+          return { ok: true, value };
+        } catch (error) {
+          entries = priorEntries;
+          eventTypes = priorTypes;
+          if (error.conflict) {
+            try {
+              applyServerState(await readServerState());
+              // Keep the user's form input intact so a conflict doesn't erase
+              // a feeding note or other draft while refreshing the calendar.
+              if (editingEntryId && !entries.some((entry) => entry.id === editingEntryId)) {
+                editingEntryId = null;
+                saveEventButton.textContent = "Save event";
+                cancelEditButton.hidden = true;
+              }
+              if (editingTypeId && !eventTypes.some((type) => type.id === editingTypeId)) {
+                editingTypeId = null;
+                saveTypeButton.textContent = "Add type";
+                cancelTypeEditButton.hidden = true;
+              }
+              setStatus("Calendar changed in another browser. Latest data loaded; your draft is preserved so you can retry.", true);
+            } catch (reloadError) {
+              storageMode = "error";
+              updateStorageDescription();
+              setStatus(`Conflict, and reloading failed: ${reloadError.message}`, true);
+            }
+          } else {
+            setStatus(`Not saved: ${error.message}`, true);
+          }
+          return { ok: false };
+        } finally {
+          mutationInFlight = false;
+          updateAll();
+        }
+      }
+
+      async function initializeStorage() {
+        // Load the original local data first; it can be migrated once if the
+        // server's shared dataset has never been initialized.
+        loadEventTypes();
+        loadEntries();
+        try {
+          const response = await fetch(CALENDAR_API, { cache: "no-store" });
+          if (response.status === 404 || response.status === 405) {
+            storageMode = "browser";
+            setStatus("Browser storage active (no generic storage API on this host).");
+          } else if (!response.ok) {
+            throw new Error(`Calendar API failed (HTTP ${response.status}).`);
+          } else {
+            const state = unpackStoredCalendar(await response.json());
+            storageMode = "server";
+            serverRevision = state.revision;
+            if (!state.initialized && (entries.length ||
+                JSON.stringify(eventTypes) !== JSON.stringify(DEFAULT_TYPES))) {
+              // First browser to connect seeds the empty server. CAS prevents
+              // overwriting data seeded by a different browser at the same time.
+              try {
+                await persistSnapshot();
+                setStatus(`Migrated ${entries.length} browser events to server storage.`);
+              } catch (error) {
+                if (!error.conflict) throw error;
+                applyServerState(await readServerState());
+                setStatus("Another browser initialized the server first. Loaded its data.");
+              }
+            } else if (state.initialized) {
+              applyServerState(state);
+              if (state.dataVersion < 2) {
+                // Existing v1 server data is upgraded in-place using CAS.
+                // The records themselves are not rewritten or reinterpreted.
+                try {
+                  await persistSnapshot();
+                } catch (error) {
+                  if (!error.conflict) throw error;
+                  applyServerState(await readServerState());
+                }
+              }
+              setStatus(`Connected to server storage (${entries.length} events).`);
+            } else {
+              setStatus("Connected to server storage. Ready for the first event.");
+            }
+          }
+        } catch (error) {
+          if (error instanceof TypeError) {
+            // Fetch network failure: static/offline browser access falls back.
+            storageMode = "browser";
+            setStatus("Calendar server could not be reached; using browser storage.", true);
+          } else {
+            // A broken existing API is not equivalent to a static host.
+            // Never silently diverge from server data on HTTP 500/permission errors.
+            storageMode = "error";
+            setStatus(`Server storage error: ${error.message}`, true);
+          }
+        }
+        updateStorageDescription();
+        resetEventForm({ keepStatus: true });
+        resetTypeForm({ keepStatus: true });
+        updateAll();
       }
 
       function getVisibleEntries() {
@@ -393,6 +618,79 @@
         return eventTypes.filter((type) => used.has(type.id) || type.id === selectedType || activeRange !== "all");
       }
 
+      function formatDuration(milliseconds) {
+        const minutes = Math.round(milliseconds / 60000);
+        if (!Number.isFinite(minutes) || minutes < 0) return "--";
+        const hours = Math.floor(minutes / 60);
+        const remainder = minutes % 60;
+        return hours ? `${hours}h ${String(remainder).padStart(2, "0")}m` : `${minutes}m`;
+      }
+
+      // Derive durations from the chronological event log, without changing
+      // any stored events or the backward-compatible five-column CSV format.
+      // An extra Start replaces an unmatched earlier Start; an orphan End is
+      // ignored. Periods may cross midnight. Identical timestamps are valid.
+      function analyzeSleepEntries(source = entries) {
+        const sleepEvents = source
+          .filter((entry) => entry.typeId === "sleep-start" || entry.typeId === "sleep-end")
+          .slice()
+          .sort((a, b) => {
+            const delta = new Date(a.timestamp) - new Date(b.timestamp);
+            if (delta) return delta;
+            return (a.typeId === "sleep-start" ? -1 : 1) -
+                   (b.typeId === "sleep-start" ? -1 : 1);
+          });
+        const completed = [];
+        const endDurations = new Map();
+        const wakeGaps = [];
+        let activeStart = null;
+        let lastEndTime = null;
+        for (const entry of sleepEvents) {
+          const when = new Date(entry.timestamp).getTime();
+          if (entry.typeId === "sleep-start") {
+            if (activeStart === null && lastEndTime !== null && when >= lastEndTime) {
+              wakeGaps.push({ start: lastEndTime, end: when, ms: when - lastEndTime });
+            }
+            activeStart = entry;
+            lastEndTime = null;
+          } else if (activeStart !== null) {
+            const start = new Date(activeStart.timestamp).getTime();
+            if (when >= start) {
+              const session = { start, end: when, ms: when - start, startId: activeStart.id, endId: entry.id };
+              completed.push(session);
+              endDurations.set(entry.id, session.ms);
+              activeStart = null;
+              lastEndTime = when;
+            }
+          }
+        }
+        return { completed, endDurations, wakeGaps, activeStart, lastEndTime };
+      }
+
+      function updateSleepStats() {
+        const sleep = analyzeSleepEntries();
+        const now = Date.now();
+        const dayStart = now - DAY_MS;
+        const total24 = sleep.completed.reduce((total, session) =>
+          total + Math.max(0, Math.min(session.end, now) - Math.max(session.start, dayStart)), 0);
+        const latest = sleep.completed[sleep.completed.length - 1];
+        // Sleep completed in the last 24h only; an ongoing session is not
+        // added until a Sleep End is logged.
+        statSleep24.textContent = sleep.completed.length ? formatDuration(total24) : "--";
+        statLastSleep.textContent = latest ? formatDuration(latest.ms) : "--";
+        // Ignore gaps longer than 24h (typically missing logs) in the average.
+        const recentGaps = sleep.wakeGaps.filter((gap) =>
+          gap.end <= now && gap.end >= now - 7 * DAY_MS && gap.ms <= DAY_MS);
+        statWakeGap.textContent = recentGaps.length
+          ? formatDuration(recentGaps.reduce((sum, gap) => sum + gap.ms, 0) / recentGaps.length)
+          : "--";
+        statSleepState.textContent = sleep.activeStart
+          ? `Sleeping since ${formatShortDate(sleep.activeStart.timestamp)}`
+          : sleep.lastEndTime !== null
+            ? `Awake since ${formatShortDate(sleep.lastEndTime)}`
+            : "No active sleep";
+      }
+
       function countByType(visibleEntries) {
         return visibleEntries.reduce((counts, entry) => {
           counts[entry.typeId] = (counts[entry.typeId] || 0) + 1;
@@ -401,6 +699,7 @@
       }
 
       function updateStats(visibleEntries) {
+        updateSleepStats();
         const counts = countByType(visibleEntries);
         const latest = visibleEntries[visibleEntries.length - 1];
         const busiestId = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
@@ -699,6 +998,7 @@
 
       function renderHistory() {
         historyTableBody.textContent = "";
+        const sleepDurations = analyzeSleepEntries().endDurations;
         const recentEntries = entries.slice().reverse();
         if (!recentEntries.length) {
           const row = document.createElement("tr");
@@ -723,7 +1023,10 @@
 
           dateCell.textContent = formatDateTime(entry.timestamp);
           eventCell.textContent = `${type.emoji} ${type.label}`;
-          notesCell.textContent = entry.notes || "";
+          const sleepDuration = sleepDurations.get(entry.id);
+          notesCell.textContent = sleepDuration === undefined
+            ? (entry.notes || "")
+            : `Sleep duration: ${formatDuration(sleepDuration)}${entry.notes ? " · " + entry.notes : ""}`;
 
           actionsCell.className = "history-actions";
           editButton.type = "button";
@@ -759,7 +1062,6 @@
           entries.push(normalized);
         }
         sortEntries();
-        saveEntries();
         return true;
       }
 
@@ -870,7 +1172,6 @@
           emoji: cleanEmoji
         });
         eventTypes.push(nextType);
-        saveEventTypes();
         return nextType;
       }
 
@@ -933,15 +1234,11 @@
           imported += 1;
         });
 
-        if (imported > 0) {
-          sortEntries();
-          saveEntries();
-          saveEventTypes();
-        }
+        if (imported > 0) sortEntries();
         return { imported, skipped };
       }
 
-      eventForm.addEventListener("submit", (event) => {
+      eventForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const date = parseInputDate(eventTime.value);
         if (!eventType.value) {
@@ -954,23 +1251,19 @@
           eventTime.focus();
           return;
         }
-        const ok = upsertEntry({
+        const wasEditing = Boolean(editingEntryId);
+        const result = await commitMutation(() => upsertEntry({
           id: editingEntryId || makeId(),
           timestamp: date.toISOString(),
           typeId: eventType.value,
           notes: eventNotes.value.trim()
-        });
-        if (!ok) {
-          setStatus("The event could not be saved.", true);
-          return;
-        }
-        const message = editingEntryId ? "Updated event." : "Saved event.";
+        }));
+        if (!result.ok) return;
         resetEventForm({ keepStatus: true });
-        setStatus(message);
-        updateAll();
+        setStatus(wasEditing ? "Updated event." : "Saved event.");
       });
 
-      eventTypeForm.addEventListener("submit", (event) => {
+      eventTypeForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const label = typeLabel.value.trim();
         const emoji = normalizeEmoji(typeEmoji.value);
@@ -979,25 +1272,21 @@
           typeLabel.focus();
           return;
         }
-        if (editingTypeId) {
-          const type = eventTypes.find((item) => item.id === editingTypeId);
-          if (type) {
-            type.label = label;
-            type.emoji = emoji;
+        const wasEditing = Boolean(editingTypeId);
+        const result = await commitMutation(() => {
+          if (editingTypeId) {
+            const type = eventTypes.find((item) => item.id === editingTypeId);
+            if (type) {
+              type.label = label;
+              type.emoji = emoji;
+            }
+          } else {
+            eventTypes.push({ id: uniqueTypeId(label), label, emoji });
           }
-          resetTypeForm({ keepStatus: true });
-          setStatus("Updated event type.");
-        } else {
-          eventTypes.push({
-            id: uniqueTypeId(label),
-            label,
-            emoji
-          });
-          resetTypeForm({ keepStatus: true });
-          setStatus("Added event type.");
-        }
-        saveEventTypes();
-        updateAll();
+        });
+        if (!result.ok) return;
+        resetTypeForm({ keepStatus: true });
+        setStatus(wasEditing ? "Updated event type." : "Added event type.");
       });
 
       setNowButton.addEventListener("click", () => {
@@ -1016,7 +1305,7 @@
 
       eventType.addEventListener("change", scheduleDraw);
 
-      eventTypeList.addEventListener("click", (event) => {
+      eventTypeList.addEventListener("click", async (event) => {
         const button = event.target.closest("button[data-action]");
         if (!button) return;
         const type = eventTypes.find((item) => item.id === button.dataset.id);
@@ -1038,15 +1327,14 @@
             setStatus("Delete events of this type before removing it.", true);
             return;
           }
-          eventTypes = eventTypes.filter((item) => item.id !== type.id);
-          if (!eventTypes.length) {
-            eventTypes = DEFAULT_TYPES.map((item) => ({ ...item }));
-          }
-          saveEventTypes();
+          const result = await commitMutation(() => {
+            eventTypes = eventTypes.filter((item) => item.id !== type.id);
+            if (!eventTypes.length) eventTypes = DEFAULT_TYPES.map((item) => ({ ...item }));
+          });
+          if (!result.ok) return;
           resetTypeForm({ keepStatus: true });
           resetEventForm({ keepStatus: true });
           setStatus("Deleted event type.");
-          updateAll();
         }
       });
 
@@ -1059,7 +1347,7 @@
         });
       });
 
-      historyTableBody.addEventListener("click", (event) => {
+      historyTableBody.addEventListener("click", async (event) => {
         const button = event.target.closest("button[data-action]");
         if (!button) return;
         const entry = entries.find((item) => item.id === button.dataset.id);
@@ -1080,29 +1368,28 @@
         }
 
         if (button.dataset.action === "delete") {
-          entries = entries.filter((item) => item.id !== entry.id);
-          if (editingEntryId === entry.id) {
-            resetEventForm();
-          }
-          if (chartState.selectedId === entry.id) {
-            chartState.selectedId = null;
-          }
-          saveEntries();
+          const result = await commitMutation(() => {
+            entries = entries.filter((item) => item.id !== entry.id);
+          });
+          if (!result.ok) return;
+          if (editingEntryId === entry.id) resetEventForm({ keepStatus: true });
+          if (chartState.selectedId === entry.id) chartState.selectedId = null;
           setStatus("Deleted event.");
           updateAll();
         }
       });
 
-      clearAllButton.addEventListener("click", () => {
+      clearAllButton.addEventListener("click", async () => {
         if (!entries.length) {
           setStatus("There are no events to clear.");
           return;
         }
-        if (!window.confirm("Clear all baby calendar events stored in this browser?")) {
+        const target = storageMode === "server" ? "shared server calendar" : "this browser";
+        if (!window.confirm(`Clear all baby calendar events stored in ${target}?`)) {
           return;
         }
-        entries = [];
-        saveEntries();
+        const result = await commitMutation(() => { entries = []; });
+        if (!result.ok) return;
         chartState.selectedId = null;
         resetEventForm({ keepStatus: true });
         setStatus("Cleared all events.");
@@ -1117,11 +1404,10 @@
         const file = csvInput.files && csvInput.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.addEventListener("load", () => {
+        reader.addEventListener("load", async () => {
           try {
-            const result = importCsvText(String(reader.result || ""));
-            setStatus(`Imported ${result.imported} events. Skipped ${result.skipped}.`);
-            updateAll();
+            const result = await commitMutation(() => importCsvText(String(reader.result || "")));
+            if (result.ok) setStatus(`Imported ${result.value.imported} events. Skipped ${result.value.skipped}.`);
           } catch (error) {
             setStatus(error.message || "CSV import failed.", true);
           } finally {
@@ -1230,12 +1516,7 @@
         }
       }
 
-      loadEventTypes();
-      renderTypes();
-      loadEntries();
-      resetEventForm();
-      resetTypeForm();
-      updateAll();
+      initializeStorage();
     </script>
   </body>
 </html>
