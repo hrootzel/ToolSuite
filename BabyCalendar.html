@@ -6,15 +6,157 @@
     <meta name="color-scheme" content="light dark" />
     <title>BabyCalendar - ToolSuite</title>
     <link rel="stylesheet" href="style.css" />
+
+    <!-- Scoped BabyCalendar themes: leave shared ToolSuite style.css unchanged. -->
+    <style id="baby-calendar-themes">
+      :root[data-baby-theme="light"] {
+        color-scheme: light;
+        --bg: #faf6f2;
+        --surface: #fffcfa;
+        --surface-2: #f6f0ef;
+        --border: #e5d9dc;
+        --text: #342e3b;
+        --muted: #655c6b;
+        --primary: #75537d;
+        --primary-hover: #603e68;
+        --primary-ink: #ffffff;
+        --focus: rgba(117, 83, 125, .28);
+        --shadow: 0 3px 8px rgba(91, 67, 88, .04), 0 14px 30px rgba(91, 67, 88, .08);
+        --baby-mint: #e5f3ed;
+        --baby-peach: #fff0e6;
+        --baby-lavender: #f0ebf7;
+        --baby-pink: #f8e8ef;
+        --baby-coral: #d88387;
+        --baby-sage: #7ca99b;
+        --baby-plum: #9b7bad;
+        --baby-row-hover: #fcf4f0;
+        --baby-danger: #a7354d;
+        --baby-sky-glow: rgba(153, 201, 189, .24);
+        --baby-blush-glow: rgba(249, 188, 180, .30);
+      }
+      :root[data-baby-theme="dark"] {
+        color-scheme: dark;
+        --bg: #191b27;
+        --surface: #252634;
+        --surface-2: #302e3f;
+        --border: #4e455a;
+        --text: #f7eff6;
+        --muted: #c9bdce;
+        --primary: #e7afd1;
+        --primary-hover: #f4c5df;
+        --primary-ink: #281a2c;
+        --focus: rgba(231, 175, 209, .38);
+        --shadow: 0 4px 10px rgba(0, 0, 0, .15), 0 16px 30px rgba(0, 0, 0, .26);
+        --baby-mint: #2b403c;
+        --baby-peach: #48373b;
+        --baby-lavender: #3c344d;
+        --baby-pink: #493344;
+        --baby-coral: #f1ada8;
+        --baby-sage: #a2d8c5;
+        --baby-plum: #d2ace9;
+        --baby-row-hover: #373143;
+        --baby-danger: #ffabb7;
+        --baby-sky-glow: rgba(75, 126, 127, .15);
+        --baby-blush-glow: rgba(139, 71, 113, .17);
+      }
+      body.baby-calendar-page {
+        min-height: 100%;
+        color: var(--text);
+        background:
+          radial-gradient(720px circle at 95% -60px, var(--baby-sky-glow), transparent 65%),
+          radial-gradient(740px circle at 2% 5%, var(--baby-blush-glow), transparent 70%),
+          var(--bg);
+      }
+      .baby-calendar-page .header-row { align-items: center; }
+      .baby-header-copy { flex: 1 1 auto; min-width: 0; }
+      .baby-calendar-page .site-header__title { font-weight: 800; letter-spacing: -.035em; }
+      .baby-calendar-page .site-header__subtitle { margin-top: 6px; }
+      .baby-calendar-page .card { position: relative; overflow: hidden; }
+      .baby-calendar-page .card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 4px;
+        background: linear-gradient(90deg, var(--baby-sage), var(--baby-plum), var(--baby-coral));
+      }
+      .baby-calendar-page .stats-panel { background: linear-gradient(135deg, var(--baby-lavender), var(--surface-2) 68%); }
+      .baby-calendar-page .stats-selected { border-left: 3px solid var(--baby-plum); }
+      .baby-calendar-page .chart-area { background: linear-gradient(145deg, var(--baby-mint), var(--surface-2) 70%); }
+      .baby-calendar-page .event-type-chip:nth-child(3n+1) { background: var(--baby-mint); }
+      .baby-calendar-page .event-type-chip:nth-child(3n+2) { background: var(--baby-peach); }
+      .baby-calendar-page .event-type-chip:nth-child(3n) { background: var(--baby-lavender); }
+      .baby-calendar-page .history-table tbody tr:hover td { background: var(--baby-row-hover); }
+      .baby-calendar-page .status-text--error { color: var(--baby-danger); }
+      .baby-calendar-page .input, .baby-calendar-page .btn, .baby-calendar-page .range-button {
+        transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+      }
+      .baby-theme-toggle {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--text);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .baby-theme-toggle:hover { background: var(--baby-lavender); border-color: var(--baby-plum); }
+      .baby-theme-toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+      .baby-theme-toggle__icon { display: block; width: 21px; height: 21px; stroke: currentColor; }
+      .baby-theme-toggle__icon--moon { display: none; }
+      :root[data-baby-theme="dark"] .baby-theme-toggle__icon--sun { display: none; }
+      :root[data-baby-theme="dark"] .baby-theme-toggle__icon--moon { display: block; }
+      .baby-theme-toggle__text { font-size: .84rem; line-height: 1; }
+      @media (max-width: 520px) {
+        .baby-calendar-page .header-row { flex-wrap: wrap; }
+        .baby-header-copy { flex: 1 0 100%; order: 3; }
+        .baby-theme-toggle { margin-left: auto; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .baby-calendar-page .input, .baby-calendar-page .btn, .baby-calendar-page .range-button { transition: none; }
+      }
+    </style>
+    <script id="baby-theme-before-paint">
+      // Set an explicit theme before the page renders to avoid a light/dark flash.
+      (() => {
+        let preference = null;
+        try { preference = localStorage.getItem("toolsuite.babyCalendar.theme.v1"); } catch (_) {}
+        const wantsDark = preference === "dark" ||
+          (preference !== "light" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.babyTheme = wantsDark ? "dark" : "light";
+      })();
+    </script>
   </head>
-  <body>
+  <body class="baby-calendar-page">
     <header class="site-header site-header--compact">
       <div class="container header-row">
         <a class="btn btn--ghost" href="index.html">Back</a>
-        <div>
+        <div class="baby-header-copy">
           <h1 class="site-header__title">BabyCalendar</h1>
-          <p class="site-header__subtitle">Log baby events and review feeding, pee, poo, and custom patterns.</p>
+          <p class="site-header__subtitle">Little moments, beautifully kept. Track feeding, sleep and diaper changes.</p>
         </div>
+        <button type="button" class="baby-theme-toggle" id="themeToggle"
+                aria-label="Switch to dark mode" aria-pressed="false" title="Switch to dark mode">
+          <svg class="baby-theme-toggle__icon baby-theme-toggle__icon--sun" viewBox="0 0 24 24"
+               fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>
+          </svg>
+          <svg class="baby-theme-toggle__icon baby-theme-toggle__icon--moon" viewBox="0 0 24 24"
+               fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.2 16.6A9 9 0 0 1 7.4 3.8a9 9 0 1 0 12.8 12.8Z"/>
+            <path d="m18.5 3.5.45 1.05L20 5l-1.05.45L18.5 6.5l-.45-1.05L17 5l1.05-.45Z"/>
+          </svg>
+          <span class="baby-theme-toggle__text" id="themeModeLabel">Light</span>
+        </button>
       </div>
     </header>
 
@@ -182,6 +324,7 @@
       const ENTRY_STORAGE_KEY = "toolsuite.babyCalendar.entries.v1";
       const TYPE_STORAGE_KEY = "toolsuite.babyCalendar.types.v1";
       const SLEEP_TYPE_MIGRATION_KEY = "toolsuite.babyCalendar.sleepTypes.v2";
+      const THEME_STORAGE_KEY = "toolsuite.babyCalendar.theme.v1";
       const RANGE_KEY = "toolsuite.babyCalendar.range.v1";
       const CALENDAR_API = new URL("./api/storage/baby-calendar", window.location.href).pathname;
       const DAY_MS = 24 * 60 * 60 * 1000;
@@ -209,6 +352,8 @@
         { id: "other", label: "Other", emoji: "⭐" }
       ];
 
+      const themeToggle = document.getElementById("themeToggle");
+      const themeModeLabel = document.getElementById("themeModeLabel");
       const eventForm = document.getElementById("eventForm");
       const eventType = document.getElementById("eventType");
       const eventTime = document.getElementById("eventTime");
@@ -266,6 +411,27 @@
       let storageMode = "loading"; // server, browser, or error
       let serverRevision = 0;
       let mutationInFlight = false;
+
+      // Theme is a local presentation preference; it never enters server data or CSV.
+      function applyBabyTheme(theme, savePreference = false) {
+        const selected = theme === "dark" ? "dark" : "light";
+        document.documentElement.dataset.babyTheme = selected;
+        themeModeLabel.textContent = selected === "dark" ? "Dark" : "Light";
+        themeToggle.setAttribute("aria-pressed", String(selected === "dark"));
+        const action = `Switch to ${selected === "dark" ? "light" : "dark"} mode`;
+        themeToggle.setAttribute("aria-label", action);
+        themeToggle.title = action;
+        if (savePreference) {
+          try { localStorage.setItem(THEME_STORAGE_KEY, selected); } catch (_) {}
+        }
+        // The canvas uses theme-dependent CSS variables and must be repainted.
+        scheduleDraw();
+      }
+
+      themeToggle.addEventListener("click", () => {
+        applyBabyTheme(document.documentElement.dataset.babyTheme === "dark" ? "light" : "dark", true);
+      });
+      applyBabyTheme(document.documentElement.dataset.babyTheme || "light");
 
       function setStatus(message, isError = false) {
         statusText.textContent = message;
@@ -1510,9 +1676,19 @@
       if (window.matchMedia) {
         const schemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
         if (schemeQuery.addEventListener) {
-          schemeQuery.addEventListener("change", scheduleDraw);
+          schemeQuery.addEventListener("change", () => {
+            let saved = null;
+            try { saved = localStorage.getItem(THEME_STORAGE_KEY); } catch (_) {}
+            if (saved !== "light" && saved !== "dark") applyBabyTheme(schemeQuery.matches ? "dark" : "light");
+            else scheduleDraw();
+          });
         } else if (schemeQuery.addListener) {
-          schemeQuery.addListener(scheduleDraw);
+          schemeQuery.addListener(() => {
+            let saved = null;
+            try { saved = localStorage.getItem(THEME_STORAGE_KEY); } catch (_) {}
+            if (saved !== "light" && saved !== "dark") applyBabyTheme(schemeQuery.matches ? "dark" : "light");
+            else scheduleDraw();
+          });
         }
       }
 
