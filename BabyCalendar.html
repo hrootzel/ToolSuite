@@ -269,6 +269,49 @@
       @media (max-width: 550px) {
         .baby-event-types-details .baby-event-types-hint { display: block; margin: 4px 0 0 23px; }
       }
+
+      /* A deliberately high-friction confirmation for irreversible deletion. */
+      .baby-clear-trigger { color: var(--baby-danger); border-color: var(--border); }
+      .baby-clear-trigger:hover { border-color: var(--baby-danger); background: var(--baby-pink); }
+      .baby-clear-dialog {
+        width: min(490px, calc(100% - 32px));
+        max-height: calc(100dvh - 32px);
+        box-sizing: border-box;
+        overflow-y: auto;
+        padding: 24px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        color: var(--text);
+        background: var(--surface);
+        box-shadow: 0 20px 70px rgba(0, 0, 0, .32);
+      }
+      .baby-clear-dialog::backdrop { background: rgba(12, 15, 25, .70); }
+      .baby-clear-dialog h2 { margin: 0 0 12px; font-size: 1.3rem; line-height: 1.3; }
+      .baby-clear-dialog p { margin: 9px 0 12px; line-height: 1.5; }
+      .baby-clear-dialog .baby-clear-warning { color: var(--baby-danger); font-weight: 700; }
+      .baby-clear-dialog .baby-clear-instructions { margin-top: 20px; }
+      .baby-clear-dialog .baby-clear-instructions label { display: block; margin-bottom: 7px; font-weight: 650; }
+      .baby-clear-dialog .baby-clear-instructions .input { width: 100%; box-sizing: border-box; }
+      .baby-clear-dialog .baby-clear-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+      .baby-clear-dialog .baby-clear-danger {
+        border: 1px solid var(--baby-danger);
+        color: #fff;
+        background: #a7354d;
+        padding: 10px 13px;
+        border-radius: 9px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .baby-clear-dialog .baby-clear-danger:hover:not(:disabled) { background: #852338; }
+      .baby-clear-dialog .baby-clear-danger:disabled { opacity: .42; cursor: not-allowed; }
+      .baby-clear-dialog .baby-clear-danger:focus-visible,
+      .baby-clear-dialog .input:focus-visible,
+      .baby-clear-dialog .btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+      @media (max-width: 460px) {
+        .baby-clear-dialog { padding: 18px; }
+        .baby-clear-dialog .baby-clear-actions > button { flex: 1 1 100%; }
+      }
     </style>
     <script id="baby-theme-before-paint">
       // Set an explicit theme before the page renders to avoid a light/dark flash.
@@ -487,7 +530,7 @@
               <button class="btn btn--sm" id="exportButton" type="button">Export CSV</button>
               <button class="btn btn--sm" id="importButton" type="button">Import CSV</button>
               <input class="visually-hidden" id="csvInput" type="file" accept=".csv,text/csv" />
-              <button class="btn btn--ghost btn--sm" id="clearAllButton" type="button">Clear all</button>
+              <button class="btn btn--ghost btn--sm baby-clear-trigger" id="clearAllButton" type="button" aria-haspopup="dialog" aria-controls="clearAllDialog">Clear all</button>
             </div>
           </div>
           <p class="status-text history-status" id="statusText" role="status" aria-live="polite"></p>
@@ -540,6 +583,25 @@
         <p class="footer__text" id="storageFooter">Checking calendar storage...</p>
       </footer>
     </main>
+
+    <dialog id="clearAllDialog" class="baby-clear-dialog" aria-labelledby="clearAllTitle" aria-describedby="clearAllDescription">
+      <h2 id="clearAllTitle">Permanently delete all events?</h2>
+      <p id="clearAllDescription">
+        This will permanently remove <strong id="clearAllCount"></strong> from
+        <strong id="clearAllLocation"></strong>.
+        The history, chart, and daily summaries will all lose those records.
+      </p>
+      <p class="baby-clear-warning">This cannot be undone. There is no server-side recycle bin.</p>
+      <button class="btn btn--sm" id="clearAllBackupButton" type="button">Export CSV backup first</button>
+      <div class="baby-clear-instructions">
+        <label for="clearAllPhrase">Type <strong>DELETE</strong> to enable permanent deletion:</label>
+        <input class="input" id="clearAllPhrase" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="6" placeholder="DELETE" />
+      </div>
+      <div class="baby-clear-actions">
+        <button class="btn" id="clearAllCancelButton" type="button">Cancel</button>
+        <button class="baby-clear-danger" id="clearAllConfirmButton" type="button" disabled>Delete all events</button>
+      </div>
+    </dialog>
 
     <script>
       const ENTRY_STORAGE_KEY = "toolsuite.babyCalendar.entries.v1";
@@ -619,6 +681,13 @@
       const storageDescription = document.getElementById("storageDescription");
       const storageFooter = document.getElementById("storageFooter");
       const clearAllButton = document.getElementById("clearAllButton");
+      const clearAllDialog = document.getElementById("clearAllDialog");
+      const clearAllCount = document.getElementById("clearAllCount");
+      const clearAllLocation = document.getElementById("clearAllLocation");
+      const clearAllPhrase = document.getElementById("clearAllPhrase");
+      const clearAllConfirmButton = document.getElementById("clearAllConfirmButton");
+      const clearAllCancelButton = document.getElementById("clearAllCancelButton");
+      const clearAllBackupButton = document.getElementById("clearAllBackupButton");
       const historyTableBody = document.querySelector("#historyTable tbody");
       const historyScroll = document.getElementById("historyScroll");
       const timelineTooltip = document.getElementById("timelineTooltip");
@@ -2070,21 +2139,65 @@
         }
       });
 
-      clearAllButton.addEventListener("click", async () => {
+      // Deletion is only reachable through a modal with a typed safety phrase.
+      // Merely clicking the toolbar button, pressing Enter, or dismissing the
+      // dialog never changes persisted data.
+      clearAllButton.addEventListener("click", () => {
         if (!entries.length) {
           setStatus("There are no events to clear.");
           return;
         }
-        const target = storageMode === "server" ? "shared server calendar" : "this browser";
-        if (!window.confirm(`Clear all baby calendar events stored in ${target}?`)) {
+        if (mutationInFlight || !["server", "browser"].includes(storageMode)) {
+          setStatus("Calendar storage is not ready for changes.", true);
           return;
         }
-        const result = await commitMutation(() => { entries = []; });
-        if (!result.ok) return;
-        chartState.selectedId = null;
-        resetEventForm({ keepStatus: true });
-        setStatus("Cleared all events.");
-        updateAll();
+        const count = entries.length;
+        clearAllDialog.dataset.expectedCount = String(count);
+        clearAllCount.textContent = `${count} event${count === 1 ? "" : "s"}`;
+        clearAllLocation.textContent = storageMode === "server"
+          ? "the shared server calendar (all devices)"
+          : "this browser's calendar";
+        clearAllPhrase.value = "";
+        clearAllConfirmButton.disabled = true;
+        clearAllConfirmButton.textContent = `Permanently delete ${count} event${count === 1 ? "" : "s"}`;
+        clearAllDialog.showModal();
+        clearAllCancelButton.focus();
+      });
+
+      clearAllPhrase.addEventListener("input", () => {
+        clearAllConfirmButton.disabled = clearAllPhrase.value.trim() !== "DELETE";
+      });
+      clearAllCancelButton.addEventListener("click", () => clearAllDialog.close());
+      clearAllBackupButton.addEventListener("click", () => exportCsv());
+      clearAllDialog.addEventListener("cancel", (event) => {
+        if (mutationInFlight) event.preventDefault();
+      });
+      clearAllDialog.addEventListener("close", () => {
+        clearAllPhrase.value = "";
+        clearAllConfirmButton.disabled = true;
+      });
+      clearAllConfirmButton.addEventListener("click", async () => {
+        if (clearAllPhrase.value.trim() !== "DELETE" || !clearAllDialog.open || mutationInFlight) return;
+        if (entries.length !== Number(clearAllDialog.dataset.expectedCount)) {
+          clearAllDialog.close();
+          setStatus("Calendar events changed since opening the confirmation. Review them before trying again.", true);
+          return;
+        }
+        clearAllConfirmButton.disabled = true;
+        clearAllCancelButton.disabled = true;
+        clearAllBackupButton.disabled = true;
+        try {
+          const result = await commitMutation(() => { entries = []; });
+          clearAllDialog.close();
+          if (!result.ok) return; // commitMutation reports conflicts and write errors.
+          chartState.selectedId = null;
+          resetEventForm({ keepStatus: true });
+          setStatus("All events permanently deleted.");
+          updateAll();
+        } finally {
+          clearAllCancelButton.disabled = false;
+          clearAllBackupButton.disabled = false;
+        }
       });
 
       exportButton.addEventListener("click", exportCsv);
